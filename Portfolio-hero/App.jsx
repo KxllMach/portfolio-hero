@@ -10,12 +10,18 @@ function CursorCollider() {
   const { camera, mouse } = useThree();
   const cursorRef = useRef();
   const vec = new THREE.Vector3();
+  const dir = new THREE.Vector3();
 
   useFrame(() => {
     if (!cursorRef.current) return;
 
+    // 1. Create a direction vector from the camera
+    camera.getWorldDirection(dir);
+
+    // 2. Use raycasting logic: cast mouse ray to a plane z = 0
     vec.set(mouse.x, mouse.y, 0.5).unproject(camera);
 
+    // 3. Set position in world coordinates
     cursorRef.current.setTranslation(
       { x: vec.x, y: vec.y, z: vec.z },
       true

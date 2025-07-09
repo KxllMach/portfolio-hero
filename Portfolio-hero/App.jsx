@@ -10,12 +10,18 @@ function CursorCollider() {
   const { camera, mouse, viewport } = useThree();
   const cursorRef = useRef();
 
+  const vec = new THREE.Vector3();
+  const dir = new THREE.Vector3();
+
   useFrame(() => {
-    if (cursorRef.current) {
-      // Convert mouse [-1, 1] to 3D position in world
-      const vec = new THREE.Vector3(mouse.x, mouse.y, 0.5).unproject(camera);
-      cursorRef.current.setTranslation(vec, true);
-    }
+    if (!cursorRef.current) return;
+
+    // Set the 3D cursor position on a plane in front of camera (z = 0)
+    camera.getWorldDirection(dir);
+    dir.multiplyScalar(10); // distance from camera
+    vec.set(mouse.x, mouse.y, 0.5).unproject(camera);
+    
+    cursorRef.current.setTranslation(vec, true);
   });
 
   return (
@@ -23,11 +29,11 @@ function CursorCollider() {
       ref={cursorRef}
       type="kinematicPosition"
       colliders="ball"
-      collisionGroups={{ groups: 0b0010, masks: 0b0001 }} // optional filtering
+      collisionGroups={{ groups: 0b0010, masks: 0b0001 }}
     >
       <mesh visible={true}>
-        <sphereGeometry args={[1.5, 16, 16]} />
-        <meshStandardMaterial color="hotpink" transparent opacity={0.2} />
+        <sphereGeometry args={[1.5, 32, 32]} />
+        <meshStandardMaterial color="hotpink" transparent opacity={0.5} />
       </mesh>
     </RigidBody>
   );

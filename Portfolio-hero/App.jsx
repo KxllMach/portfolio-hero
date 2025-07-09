@@ -54,8 +54,9 @@ export default function App() {
         />
         <mesh position={[0, 0, 0]}>
   <sphereGeometry args={[1.5, 32, 32]} />
-  <meshStandardMaterial color="white" />
+  <meshBasicMaterial color="white" />
 </mesh>
+
         <Physics gravity={[0, 0, 0]} colliders={false}>
           <FloatingObjects count={20} />
           <CursorCollider />

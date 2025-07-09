@@ -1,9 +1,22 @@
 import { useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
 import { RigidBody } from '@react-three/rapier';
 import { Sphere } from '@react-three/drei';
+import * as THREE from 'three';
 
 function FloatingSphere({ position, type }) {
   const ref = useRef();
+
+  useFrame(() => {
+    if (ref.current) {
+      const body = ref.current;
+      const pos = body.translation();
+      const toCenter = new THREE.Vector3(-pos.x, -pos.y, -pos.z).normalize();
+      toCenter.multiplyScalar(0.05); // attraction strength
+
+      body.applyImpulse(toCenter, true);
+    }
+  });
 
   const getMaterial = () => {
     if (type === 'acid') {

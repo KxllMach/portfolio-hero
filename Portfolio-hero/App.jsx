@@ -7,7 +7,7 @@ import { useRef } from 'react';
 import * as THREE from 'three';
 
 function CursorCollider() {
-  const { camera, mouse, size } = useThree();
+  const { camera, mouse } = useThree();
   const cursorRef = useRef();
 
   const vec = new THREE.Vector3();
@@ -15,15 +15,10 @@ function CursorCollider() {
   useFrame(() => {
     if (!cursorRef.current) return;
 
-    // Get mouse position in normalized device coordinates (-1 to 1)
-    const x = (mouse.x * size.width) / 2;
-    const y = (mouse.y * size.height) / 2;
+    // Project mouse to a point in front of the camera (z = 0.5 in NDC space)
+    vec.set(mouse.x, mouse.y, 0.5).unproject(camera);
 
-    // Convert to 3D world position (set z = 0)
-    vec.set(mouse.x, mouse.y, 0);
-    vec.unproject(camera);
-
-    // Move the collider to the unprojected position
+    // Set position in world space
     cursorRef.current.setTranslation(vec, true);
   });
 
@@ -35,8 +30,8 @@ function CursorCollider() {
       collisionGroups={{ groups: 0b0010, masks: 0b0001 }}
     >
       <mesh visible={true}>
-        <sphereGeometry args={[3, 32, 32]} />
-        <meshStandardMaterial color="hotpink"/>
+        <sphereGeometry args={[1.5, 32, 32]} />
+        <meshStandardMaterial color="hotpink" />
       </mesh>
     </RigidBody>
   );

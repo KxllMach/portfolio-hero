@@ -22,8 +22,6 @@ function FloatingSphere({ position, type }) {
             color="#000000"
             roughness={0.05}
             metalness={1}
-            reflectivity={1}
-            clearcoat={1}
           />
         );
       case 'offwhite':

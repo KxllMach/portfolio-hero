@@ -10,7 +10,7 @@ export default function App() {
         shadows
         gl={{ physicallyCorrectLights: true }}
       >
-        <ambientLight intensity={0.6} />
+        <ambientLight intensity={2.0} />
           <directionalLight
           position={[5, 5, 5]}
           intensity={4}

@@ -15,7 +15,7 @@ function FloatingSphere({ position, type }) {
 
       // Constant attraction to center
       const toCenter = new THREE.Vector3(-pos.x, -pos.y, -pos.z).normalize();
-      toCenter.multiplyScalar(0.003); // gentler attraction
+      toCenter.multiplyScalar(0.08); // gentler attraction
       body.applyImpulse(toCenter, true);
 
       // Add soft floating (water-like movement)

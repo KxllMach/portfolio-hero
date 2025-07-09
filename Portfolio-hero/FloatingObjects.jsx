@@ -9,16 +9,28 @@ function FloatingSphere({ position, type }) {
     switch (type) {
       case 'acid':
         return (
-          <meshStandardMaterial color="hotpink" />
+          <meshStandardMaterial
+            color="#b0ff36"
+            roughness={0.3}
+            metalness={0.8}
+          />
         );
       case 'black':
         return (
-          <meshStandardMaterial color="hotpink" />
+          <meshStandardMaterial
+            color="#111111"
+            roughness={0.1}
+            metalness={1}
+          />
         );
       case 'offwhite':
       default:
         return (
-          <meshStandardMaterial color="hotpink" />
+          <meshStandardMaterial
+            color="#f2f2f2"
+            roughness={1}
+            metalness={0}
+          />
         );
     }
   };
@@ -39,21 +51,15 @@ function FloatingSphere({ position, type }) {
 }
 
 export default function FloatingObjects({ count = 20 }) {
-  // Assign colors:
   const types = [];
 
-  // Add 2 black balls
   types.push(...Array(2).fill('black'));
-
-  // Add 3 green acid ones
   types.push(...Array(3).fill('acid'));
-
-  // Fill the rest with offwhite
   while (types.length < count) {
     types.push('offwhite');
   }
 
-  // Shuffle the types array
+  // Shuffle types
   for (let i = types.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [types[i], types[j]] = [types[j], types[i]];
@@ -63,16 +69,3 @@ export default function FloatingObjects({ count = 20 }) {
     position: [
       (Math.random() - 0.5) * 10,
       (Math.random() - 0.5) * 6,
-      (Math.random() - 0.5) * 6,
-      types[i],
-    ],
-  }));
-
-  return (
-    <>
-      {spheres.map(([x, y, z, type], i) => (
-        <FloatingSphere key={i} position={[x, y, z]} type={type} />
-      ))}
-    </>
-  );
-}

@@ -1,24 +1,23 @@
 import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RigidBody } from '@react-three/rapier';
-import { Sphere } from '@react-three/drei';
 import * as THREE from 'three';
 
-function FloatingSphere({ position, type }) {
+// --- Connector Component ---
+function Connector({ position, type }) {
   const ref = useRef();
 
-  // Apply soft attraction + idle motion
   useFrame((state) => {
     if (ref.current) {
       const body = ref.current;
       const pos = body.translation();
 
-      // Constant attraction to center
+      // Attraction to center
       const toCenter = new THREE.Vector3(-pos.x, -pos.y, -pos.z).normalize();
-      toCenter.multiplyScalar(0.08); // gentler attraction
+      toCenter.multiplyScalar(0.08);
       body.applyImpulse(toCenter, true);
 
-      // Add soft floating (water-like movement)
+      // Wave-like floating motion
       const time = state.clock.getElapsedTime();
       const wave = new THREE.Vector3(
         Math.sin(time + pos.x) * 0.001,
@@ -31,29 +30,11 @@ function FloatingSphere({ position, type }) {
 
   const getMaterial = () => {
     if (type === 'acid') {
-      return (
-        <meshStandardMaterial
-          color="#b0ff36"
-          roughness={0.3}
-          metalness={0.8}
-        />
-      );
+      return <meshStandardMaterial color="#b0ff36" roughness={0.3} metalness={0.8} />;
     } else if (type === 'black') {
-      return (
-        <meshStandardMaterial
-          color="#111111"
-          roughness={0.1}
-          metalness={1}
-        />
-      );
+      return <meshStandardMaterial color="#111111" roughness={0.1} metalness={1} />;
     } else {
-      return (
-        <meshStandardMaterial
-          color="#f2f2f2"
-          roughness={1}
-          metalness={0}
-        />
-      );
+      return <meshStandardMaterial color="#f2f2f2" roughness={1} metalness={0} />;
     }
   };
 
@@ -61,40 +42,54 @@ function FloatingSphere({ position, type }) {
     <RigidBody
       ref={ref}
       position={position}
-      colliders="ball"
+      colliders="cuboid"
       linearDamping={2.5}
       angularDamping={2.5}
-      onCollisionEnter={() => {
-        if (ref.current) {
-          ref.current.setLinvel({ x: 0, y: 0, z: 0 }, true);
-          ref.current.setAngvel({ x: 0, y: 0, z: 0 }, true);
-        }
-      }}
     >
-      <Sphere args={[1.5, 32, 32]}>
-        {getMaterial()}
-      </Sphere>
+      <group>
+        {/* Center Sphere */}
+        <mesh>
+          <sphereGeometry args={[1, 32, 32]} />
+          {getMaterial()}
+        </mesh>
+
+        {/* 6 arms in ±X, ±Y, ±Z */}
+        {[
+          [1.5, 0, 0, 0, 0, Math.PI / 2],
+          [-1.5, 0, 0, 0, 0, Math.PI / 2],
+          [0, 1.5, 0, 0, 0, 0],
+          [0, -1.5, 0, 0, 0, 0],
+          [0, 0, 1.5, Math.PI / 2, 0, 0],
+          [0, 0, -1.5, Math.PI / 2, 0, 0],
+        ].map(([x, y, z, rx, ry, rz], i) => (
+          <mesh key={i} position={[x, y, z]} rotation={[rx, ry, rz]}>
+            <cylinderGeometry args={[0.25, 0.25, 1.5, 16]} />
+            {getMaterial()}
+          </mesh>
+        ))}
+      </group>
     </RigidBody>
   );
 }
 
-
+// --- Main Export ---
 export default function FloatingObjects({ count = 20 }) {
   const types = [];
 
+  // 2 black, 3 acid, rest offwhite
   types.push(...Array(2).fill('black'));
   types.push(...Array(3).fill('acid'));
   while (types.length < count) {
     types.push('offwhite');
   }
 
-  // Shuffle types
+  // Shuffle
   for (let i = types.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [types[i], types[j]] = [types[j], types[i]];
   }
 
-  const spheres = Array.from({ length: count }, (_, i) => {
+  const connectors = Array.from({ length: count }, (_, i) => {
     const x = (Math.random() - 0.5) * 10;
     const y = (Math.random() - 0.5) * 6;
     const z = (Math.random() - 0.5) * 6;
@@ -106,12 +101,8 @@ export default function FloatingObjects({ count = 20 }) {
 
   return (
     <>
-      {spheres.map((sphere, i) => (
-        <FloatingSphere
-          key={i}
-          position={sphere.position}
-          type={sphere.type}
-        />
+      {connectors.map((item, i) => (
+        <Connector key={i} position={item.position} type={item.type} />
       ))}
     </>
   );

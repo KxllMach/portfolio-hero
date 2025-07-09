@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { RigidBody, SphereCollider } from '@react-three/rapier';
+import { RigidBody } from '@react-three/rapier';
 import { Sphere } from '@react-three/drei';
 
 function FloatingSphere({ position }) {
@@ -9,12 +9,11 @@ function FloatingSphere({ position }) {
     <RigidBody
       ref={ref}
       position={position}
-      colliders={false}
+      colliders="ball" // <- this tells Rapier to use a spherical collider
       linearDamping={1}
       angularDamping={1}
     >
-      <SphereCollider args={[1]} />
-      <Sphere args={[1, 32, 32]}>
+      <Sphere args={[1.5, 32, 32]}>
         <meshPhysicalMaterial
           color="#f5f5f5"
           roughness={0.2}
@@ -27,6 +26,7 @@ function FloatingSphere({ position }) {
     </RigidBody>
   );
 }
+
 
 export default function FloatingObjects({ count = 20 }) {
   const spheres = Array.from({ length: count }, () => ({

@@ -6,32 +6,30 @@ function FloatingSphere({ position, type }) {
   const ref = useRef();
 
   const getMaterial = () => {
-    switch (type) {
-      case 'acid':
-        return (
-          <meshStandardMaterial
-            color="#b0ff36"
-            roughness={0.3}
-            metalness={0.8}
-          />
-        );
-      case 'black':
-        return (
-          <meshStandardMaterial
-            color="#111111"
-            roughness={0.1}
-            metalness={1}
-          />
-        );
-      case 'offwhite':
-      default:
-        return (
-          <meshStandardMaterial
-            color="#f2f2f2"
-            roughness={1}
-            metalness={0}
-          />
-        );
+    if (type === 'acid') {
+      return (
+        <meshStandardMaterial
+          color="#b0ff36"
+          roughness={0.3}
+          metalness={0.8}
+        />
+      );
+    } else if (type === 'black') {
+      return (
+        <meshStandardMaterial
+          color="#111111"
+          roughness={0.1}
+          metalness={1}
+        />
+      );
+    } else {
+      return (
+        <meshStandardMaterial
+          color="#f2f2f2"
+          roughness={1}
+          metalness={0}
+        />
+      );
     }
   };
 
@@ -65,7 +63,25 @@ export default function FloatingObjects({ count = 20 }) {
     [types[i], types[j]] = [types[j], types[i]];
   }
 
-  const spheres = Array.from({ length: count }, (_, i) => ({
-    position: [
-      (Math.random() - 0.5) * 10,
-      (Math.random() - 0.5) * 6,
+  const spheres = Array.from({ length: count }, (_, i) => {
+    const x = (Math.random() - 0.5) * 10;
+    const y = (Math.random() - 0.5) * 6;
+    const z = (Math.random() - 0.5) * 6;
+    return {
+      position: [x, y, z],
+      type: types[i],
+    };
+  });
+
+  return (
+    <>
+      {spheres.map((sphere, i) => (
+        <FloatingSphere
+          key={i}
+          position={sphere.position}
+          type={sphere.type}
+        />
+      ))}
+    </>
+  );
+}

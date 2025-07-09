@@ -13,14 +13,12 @@ function CursorCollider() {
   const vec = new THREE.Vector3();
 
   useFrame(() => {
-    if (!cursorRef.current) return;
+  if (!cursorRef.current) return;
 
-    // Project mouse to a point in front of the camera (z = 0.5 in NDC space)
-    vec.set(mouse.x, mouse.y, 0.5).unproject(camera);
+  // Instead of mouse, force a visible position
+  cursorRef.current.setTranslation({ x: 0, y: 0, z: 0 }, true);
+});
 
-    // Set position in world space
-    cursorRef.current.setTranslation(vec, true);
-  });
 
   return (
     <RigidBody

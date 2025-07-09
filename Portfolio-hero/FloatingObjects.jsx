@@ -17,12 +17,27 @@ function FloatingObject({ position, shape }) {
     <group ref={ref} position={position}>
       {shape === 'box' ? (
         <Box args={[0.7, 0.7, 0.7]}>
-          <meshStandardMaterial color="#61dafb" />
+          <meshPhysicalMaterial
+            color="#61dafb"
+            roughness={0.1}
+            metalness={0.8}
+            transmission={0.7} // for glass-like effect
+            thickness={1}
+            transparent
+          />
         </Box>
       ) : (
-        <Sphere args={[0.4, 32, 32]}>
-          <meshStandardMaterial color="#e91e63" />
-        </Sphere>
+       <Sphere args={[0.4, 32, 32]}>
+        <meshPhysicalMaterial
+          color="#e91e63"
+          roughness={0.1}
+          metalness={0.8}
+          transmission={0.7}
+          thickness={1}
+          transparent
+        />
+      </Sphere>
+
       )}
     </group>
   );

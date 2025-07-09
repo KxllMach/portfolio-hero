@@ -25,7 +25,7 @@ function CursorCollider() {
       colliders="ball"
       collisionGroups={{ groups: 0b0010, masks: 0b0001 }} // optional filtering
     >
-      <mesh visible={false}>
+      <mesh visible={true}>
         <sphereGeometry args={[1.5, 16, 16]} />
         <meshStandardMaterial color="hotpink" transparent opacity={0.2} />
       </mesh>

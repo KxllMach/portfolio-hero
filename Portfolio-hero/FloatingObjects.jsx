@@ -18,11 +18,12 @@ function FloatingSphere({ position, type }) {
         );
       case 'black':
         return (
-          <meshPhysicalMaterial
-            color="#000000"
-            roughness={0.05}
-            metalness={1}
+          <meshStandardMaterial
+            color="#111111"
+            roughness={0.2}
+            metalness={0.9}
           />
+
         );
       case 'offwhite':
       default:

@@ -28,7 +28,11 @@ function FloatingObject({ position, shape }) {
 
 export default function FloatingObjects({ count = 20 }) {
   const objects = Array.from({ length: count }, (_, i) => ({
-    position: [(Math.random() - 0.5) * 10, (Math.random() - 0.5) * 6, (Math.random() - 0.5) * 6],
+    position: [
+  (Math.random() - 0.5) * 20, // more spread
+  (Math.random() - 0.5) * 12,
+  (Math.random() - 0.5) * 10,
+],
     shape: Math.random() > 0.5 ? 'box' : 'sphere',
   }));
 

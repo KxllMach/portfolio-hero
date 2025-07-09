@@ -17,7 +17,7 @@ function CameraRig() {
 
 export default function App() {
   return (
-    <div className="h-screen w-screen bg-black text-white overflow-hidden">
+    <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', background: 'black' }}>
       <header className="absolute top-0 left-0 w-full p-4 z-10">
         <h1 className="text-2xl font-bold">Lusion-Inspired Hero</h1>
       </header>

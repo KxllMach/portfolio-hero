@@ -59,7 +59,7 @@ export default function App() {
           castShadow
         />
 
-        <Physics gravity={[0, 0, 0]} colliders={false}>
+        <Physics gravity={[0, 0, 0]} colliders={true}>
           <FloatingObjects count={20} />
           <CursorCollider />
         </Physics>

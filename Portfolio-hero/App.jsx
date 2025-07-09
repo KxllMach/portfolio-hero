@@ -1,6 +1,19 @@
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Suspense, useRef } from 'react';
 import FloatingObjects from './FloatingObjects';
+
+function CameraRig() {
+  const { camera, mouse } = useThree();
+
+  useFrame(() => {
+    // Smoothly interpolate the camera position based on mouse
+    camera.position.x += (mouse.x * 2 - camera.position.x) * 0.05;
+    camera.position.y += (-mouse.y * 2 - camera.position.y) * 0.05;
+    camera.lookAt(0, 0, 0);
+  });
+
+  return null;
+}
 
 export default function App() {
   return (
@@ -10,21 +23,14 @@ export default function App() {
       </header>
 
       <Canvas camera={{ position: [0, 0, 12], fov: 60 }} shadows>
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[10, 10, 5]} intensity={1} castShadow />
-        <FloatingObjects count={30} />
-        import { useRef } from 'react';
-        import { useFrame, useThree } from '@react-three/fiber';
+        <ambientLight intensity={0.6} />
+        <directionalLight position={[5, 5, 5]} intensity={1.2} />
+        <fog attach="fog" args={['#000000', 10, 30]} />
 
-function CameraRig() {
-  const { camera, mouse } = useThree();
-  useFrame(() => {
-    camera.position.x += (mouse.x * 2 - camera.position.x) * 0.05;
-    camera.position.y += (-mouse.y * 2 - camera.position.y) * 0.05;
-    camera.lookAt(0, 0, 0);
-  });
-  return null;
-}
+        <Suspense fallback={null}>
+          <FloatingObjects count={30} />
+        </Suspense>
+
         <CameraRig />
       </Canvas>
     </div>

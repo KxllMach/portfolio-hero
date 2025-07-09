@@ -9,16 +9,18 @@ import * as THREE from 'three';
 function CursorCollider() {
   const { camera, mouse } = useThree();
   const cursorRef = useRef();
-
   const vec = new THREE.Vector3();
 
   useFrame(() => {
-  if (!cursorRef.current) return;
+    if (!cursorRef.current) return;
 
-  // Instead of mouse, force a visible position
-  cursorRef.current.setTranslation({ x: 0, y: 0, z: 0 }, true);
-});
+    vec.set(mouse.x, mouse.y, 0.5).unproject(camera);
 
+    cursorRef.current.setTranslation(
+      { x: vec.x, y: vec.y, z: vec.z },
+      true
+    );
+  });
 
   return (
     <RigidBody
@@ -50,10 +52,6 @@ export default function App() {
           color="#ffffff"
           castShadow
         />
-        <mesh position={[0, 0, 0]}>
-  <sphereGeometry args={[1.5, 32, 32]} />
-  <meshBasicMaterial color="white" />
-</mesh>
 
         <Physics gravity={[0, 0, 0]} colliders={false}>
           <FloatingObjects count={20} />

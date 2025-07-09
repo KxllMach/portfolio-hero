@@ -1,47 +1,6 @@
 import { Canvas } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
 import FloatingObjects from './FloatingObjects';
-import { useThree, useFrame } from '@react-three/fiber';
-import { RigidBody } from '@react-three/rapier';
-import { useRef } from 'react';
-import * as THREE from 'three';
-
-function CursorCollider() {
-  const { camera, mouse } = useThree();
-  const cursorRef = useRef();
-  const vec = new THREE.Vector3();
-  const dir = new THREE.Vector3();
-
-  useFrame(() => {
-    if (!cursorRef.current) return;
-
-    // 1. Create a direction vector from the camera
-    camera.getWorldDirection(dir);
-
-    // 2. Use raycasting logic: cast mouse ray to a plane z = 0
-    vec.set(mouse.x, mouse.y, 0.5).unproject(camera);
-
-    // 3. Set position in world coordinates
-    cursorRef.current.setTranslation(
-      { x: vec.x, y: vec.y, z: vec.z },
-      true
-    );
-  });
-
-  return (
-    <RigidBody
-      ref={cursorRef}
-      type="kinematicPosition"
-      colliders="ball"
-      collisionGroups={{ groups: 0b0010, masks: 0b0001 }}
-    >
-      <mesh visible={true}>
-        <sphereGeometry args={[1.5, 32, 32]} />
-        <meshStandardMaterial color="hotpink" />
-      </mesh>
-    </RigidBody>
-  );
-}
 
 export default function App() {
   return (
@@ -52,7 +11,7 @@ export default function App() {
         gl={{ physicallyCorrectLights: true }}
       >
         <ambientLight intensity={0.6} />
-          <directionalLight
+        <directionalLight
           position={[5, 5, 5]}
           intensity={4}
           color="#ffffff"
@@ -61,7 +20,6 @@ export default function App() {
 
         <Physics gravity={[0, 0, 0]} colliders={false}>
           <FloatingObjects count={20} />
-          <CursorCollider />
         </Physics>
       </Canvas>
     </div>

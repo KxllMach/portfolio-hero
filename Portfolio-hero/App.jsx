@@ -46,7 +46,7 @@ export default function App() {
   return (
     <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', background: '#151615' }}>
       <Canvas
-        camera={{ position: [0, 0, 15], fov: 50 }}
+        camera={{ position: [0, 0, 15], fov: 50, near: 0.1, far: 100 }}
         shadows
         gl={{ physicallyCorrectLights: true }}
       >

@@ -9,30 +9,16 @@ function FloatingSphere({ position, type }) {
     switch (type) {
       case 'acid':
         return (
-          <meshPhysicalMaterial
-            color="#b0ff36"
-            roughness={0.2}
-            metalness={0.8}
-            clearcoat={0.3}
-          />
+          <meshStandardMaterial color="hotpink" />
         );
       case 'black':
         return (
-          <meshStandardMaterial
-            color="#111111"
-            roughness={0.2}
-            metalness={0.9}
-          />
-
+          <meshStandardMaterial color="hotpink" />
         );
       case 'offwhite':
       default:
         return (
-          <meshStandardMaterial
-            color="#f2f2f2"
-            roughness={1}
-            metalness={0}
-          />
+          <meshStandardMaterial color="hotpink" />
         );
     }
   };

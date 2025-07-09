@@ -9,7 +9,7 @@ export default function App() {
         <h1 className="text-2xl font-bold">Lusion-Inspired Hero</h1>
       </header>
 
-      <Canvas camera={{ position: [0, 0, 8], fov: 50 }} shadows>
+      <Canvas camera={{ position: [0, 0, 12], fov: 60 }} shadows>
         <ambientLight intensity={0.5} />
         <directionalLight position={[10, 10, 5]} intensity={1} castShadow />
         <FloatingObjects count={30} />

@@ -35,8 +35,8 @@ function CursorCollider() {
       collisionGroups={{ groups: 0b0010, masks: 0b0001 }}
     >
       <mesh visible={true}>
-        <sphereGeometry args={[1.5, 32, 32]} />
-        <meshStandardMaterial color="hotpink" transparent opacity={0.8} />
+        <sphereGeometry args={[3, 32, 32]} />
+        <meshStandardMaterial color="hotpink"/>
       </mesh>
     </RigidBody>
   );

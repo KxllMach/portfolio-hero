@@ -4,12 +4,14 @@ import { Box, Sphere } from '@react-three/drei';
 
 function FloatingObject({ position, shape }) {
   const ref = useRef();
-
-  useFrame((state, delta) => {
-    ref.current.rotation.x += delta * 0.5;
-    ref.current.rotation.y += delta * 0.5;
-    ref.current.position.y += Math.sin(state.clock.elapsedTime + position[0]) * 0.005;
+  useFrame((state) => {
+    const t = state.clock.getElapsedTime() + position[0];
+    ref.current.position.x += Math.sin(t) * 0.002;
+    ref.current.position.y += Math.cos(t) * 0.002;
+    ref.current.rotation.x += 0.005;
+    ref.current.rotation.y += 0.005;
   });
+
 
   return (
     <group ref={ref} position={position}>

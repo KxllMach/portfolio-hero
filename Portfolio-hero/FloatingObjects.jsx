@@ -7,14 +7,25 @@ import * as THREE from 'three';
 function FloatingSphere({ position, type }) {
   const ref = useRef();
 
-  useFrame(() => {
+  // Apply soft attraction + idle motion
+  useFrame((state) => {
     if (ref.current) {
       const body = ref.current;
       const pos = body.translation();
-      const toCenter = new THREE.Vector3(-pos.x, -pos.y, -pos.z).normalize();
-      toCenter.multiplyScalar(0.05); // attraction strength
 
+      // Constant attraction to center
+      const toCenter = new THREE.Vector3(-pos.x, -pos.y, -pos.z).normalize();
+      toCenter.multiplyScalar(0.003); // gentler attraction
       body.applyImpulse(toCenter, true);
+
+      // Add soft floating (water-like movement)
+      const time = state.clock.getElapsedTime();
+      const wave = new THREE.Vector3(
+        Math.sin(time + pos.x) * 0.001,
+        Math.cos(time + pos.y) * 0.001,
+        Math.sin(time + pos.z) * 0.001
+      );
+      body.applyImpulse(wave, true);
     }
   });
 
@@ -51,8 +62,14 @@ function FloatingSphere({ position, type }) {
       ref={ref}
       position={position}
       colliders="ball"
-      linearDamping={1.5}
-      angularDamping={1.5}
+      linearDamping={2.5}
+      angularDamping={2.5}
+      onCollisionEnter={() => {
+        if (ref.current) {
+          ref.current.setLinvel({ x: 0, y: 0, z: 0 }, true);
+          ref.current.setAngvel({ x: 0, y: 0, z: 0 }, true);
+        }
+      }}
     >
       <Sphere args={[1.5, 32, 32]}>
         {getMaterial()}
@@ -60,6 +77,7 @@ function FloatingSphere({ position, type }) {
     </RigidBody>
   );
 }
+
 
 export default function FloatingObjects({ count = 20 }) {
   const types = [];

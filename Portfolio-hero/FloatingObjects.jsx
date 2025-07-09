@@ -1,10 +1,10 @@
 import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RigidBody } from '@react-three/rapier';
+import { Icosahedron, TorusKnot, Dodecahedron } from '@react-three/drei';
 import * as THREE from 'three';
 
-// --- Connector Component ---
-function Connector({ position, type }) {
+function FloatingShape({ position, type, shape }) {
   const ref = useRef();
 
   useFrame((state) => {
@@ -17,7 +17,7 @@ function Connector({ position, type }) {
       toCenter.multiplyScalar(0.08);
       body.applyImpulse(toCenter, true);
 
-      // Wave-like floating motion
+      // Floating motion
       const time = state.clock.getElapsedTime();
       const wave = new THREE.Vector3(
         Math.sin(time + pos.x) * 0.001,
@@ -38,71 +38,64 @@ function Connector({ position, type }) {
     }
   };
 
+  const Shape = {
+    icosahedron: <Icosahedron args={[1.5, 0]}>{getMaterial()}</Icosahedron>,
+    dodecahedron: <Dodecahedron args={[1.5]}>{getMaterial()}</Dodecahedron>,
+    torusKnot: <TorusKnot args={[0.6, 0.25, 64, 16]}>{getMaterial()}</TorusKnot>,
+  }[shape];
+
   return (
     <RigidBody
       ref={ref}
       position={position}
-      colliders="cuboid"
+      colliders="hull"
       linearDamping={2.5}
       angularDamping={2.5}
     >
-      <group>
-        {/* Center Sphere */}
-        <mesh>
-          <sphereGeometry args={[1, 32, 32]} />
-          {getMaterial()}
-        </mesh>
-
-        {/* 6 arms in ±X, ±Y, ±Z */}
-        {[
-          [1.5, 0, 0, 0, 0, Math.PI / 2],
-          [-1.5, 0, 0, 0, 0, Math.PI / 2],
-          [0, 1.5, 0, 0, 0, 0],
-          [0, -1.5, 0, 0, 0, 0],
-          [0, 0, 1.5, Math.PI / 2, 0, 0],
-          [0, 0, -1.5, Math.PI / 2, 0, 0],
-        ].map(([x, y, z, rx, ry, rz], i) => (
-          <mesh key={i} position={[x, y, z]} rotation={[rx, ry, rz]}>
-            <cylinderGeometry args={[0.25, 0.25, 1.5, 16]} />
-            {getMaterial()}
-          </mesh>
-        ))}
-      </group>
+      {Shape}
     </RigidBody>
   );
 }
 
-// --- Main Export ---
 export default function FloatingObjects({ count = 20 }) {
   const types = [];
-
-  // 2 black, 3 acid, rest offwhite
   types.push(...Array(2).fill('black'));
   types.push(...Array(3).fill('acid'));
   while (types.length < count) {
     types.push('offwhite');
   }
 
-  // Shuffle
+  // Shuffle materials
   for (let i = types.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [types[i], types[j]] = [types[j], types[i]];
   }
 
-  const connectors = Array.from({ length: count }, (_, i) => {
+  // Generate shape and position
+  const items = Array.from({ length: count }, (_, i) => {
     const x = (Math.random() - 0.5) * 10;
     const y = (Math.random() - 0.5) * 6;
     const z = (Math.random() - 0.5) * 6;
+
+    // Randomly choose a shape
+    const shape = Math.random() < 0.6 ? 'icosahedron' : Math.random() < 0.8 ? 'dodecahedron' : 'torusKnot';
+
     return {
       position: [x, y, z],
       type: types[i],
+      shape,
     };
   });
 
   return (
     <>
-      {connectors.map((item, i) => (
-        <Connector key={i} position={item.position} type={item.type} />
+      {items.map((item, i) => (
+        <FloatingShape
+          key={i}
+          position={item.position}
+          type={item.type}
+          shape={item.shape}
+        />
       ))}
     </>
   );

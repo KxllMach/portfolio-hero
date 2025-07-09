@@ -49,9 +49,9 @@ export default function App() {
           castShadow
         />
 
-        <CursorCollider />
         <Physics gravity={[0, 0, 0]} colliders={false}>
           <FloatingObjects count={20} />
+          <CursorCollider />
         </Physics>
       </Canvas>
     </div>

@@ -10,8 +10,14 @@ export default function App() {
         shadows
         gl={{ physicallyCorrectLights: true }}
       >
-        <ambientLight intensity={0.2} />
-        {/* We will replace this later with soft area lighting */}
+        <ambientLight intensity={0.6} />
+          <directionalLight
+          position={[5, 5, 5]}
+          intensity={4}
+          color="#ffffff"
+          castShadow
+        />
+
         
         <Physics gravity={[0, 0, 0]} colliders={false}>
           <FloatingObjects count={20} />

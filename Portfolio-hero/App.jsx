@@ -11,15 +11,15 @@ const accents = ['#4060ff', '#20ffa0', '#ff4060', '#ffcc00']
 
 // Shuffle with individual clearcoat, roughness, and metalness
 const shuffle = (accent = 0) => [
-  { color: '#444', roughness: 0.9, metalness: 0, clearcoat: 0.5 },
-  { color: '#444', roughness: 0.1, metalness: 0.8, clearcoat: 1 },
-  { color: '#444', roughness: 0.6, metalness: 0.55, clearcoat: 0.8 },
-  { color: 'white', roughness: 0.7, metalness: 0, clearcoat: 0.5 },
-  { color: 'white', roughness: 0.3, metalness: 0.8, clearcoat: 1 },
-  { color: 'white', roughness: 0.5, metalness: 0.4, clearcoat: 0.7 },
-  { color: accents[accent], roughness: 0.7, metalness: 0.3, clearcoat: 0.8, accent: true },
-  { color: accents[accent], roughness: 0.1, metalness: 0.8, clearcoat: 1, accent: true },
-  { color: accents[accent], roughness: 0.4, metalness: 0.6, clearcoat: 0.9, accent: true }
+  { color: '#444', roughness: 0.75, metalness: 0, clearcoat: 0 },
+  { color: '#444', roughness: 0.1, metalness: 0.2, clearcoat: 1 },
+  { color: '#444', roughness: 0.75, metalness: 0.2, clearcoat: 0.8 },
+  { color: 'white', roughness: 0.75, metalness: 0, clearcoat: 0.5 },
+  { color: 'white', roughness: 0.75, metalness: 0.0.2, clearcoat: 1 },
+  { color: 'white', roughness: 0.1, metalness: 0.2, clearcoat: 1 },
+  { color: accents[accent], roughness: 0.75, metalness: 0.2, clearcoat: 0.1, accent: true },
+  { color: accents[accent], roughness: 0.1, metalness: 0.2, clearcoat: 1, accent: true },
+  { color: accents[accent], roughness: 0.1, metalness: 0.2, clearcoat: 1, accent: true }
 ]
 
 export default function App() {
@@ -52,7 +52,7 @@ export default function App() {
       </EffectComposer>
 
       {/* Environment lighting */}
-      <Environment resolution={512}>
+      <Environment resolution={256}>
         <group rotation={[-Math.PI / 3, 0, 1]}>
           <Lightformer form="circle" intensity={6} rotation-x={Math.PI / 2} position={[0, 5, -9]} scale={2} />
           <Lightformer form="circle" intensity={3} rotation-y={Math.PI / 2} position={[-5, 1, -1]} scale={2} />

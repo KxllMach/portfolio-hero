@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { useRef, useReducer, useMemo } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useGLTF, Environment, Lightformer } from '@react-three/drei'
-import { CuboidCollider, BallCollider, Physics, RigidBody } from '@react-three/rapier'
+import { CuboidCollider, BallCollider, Physics, RigidBody, ConvexHullCollider } from '@react-three/rapier' // Import ConvexHullCollider
 import { EffectComposer, N8AO } from '@react-three/postprocessing'
 import { easing } from 'maath'
 
@@ -49,7 +49,7 @@ export default function App() {
           ]}
         />
         {/* Shadow map resolution: Higher for sharper shadows, lower for more performance */}
-        {/* Try 512x512 for balance, or 256x256 if objects are small/performance critical */}
+        {/* Using 512x512 for a balance, can go lower for more performance or higher for more quality */}
         <bufferAttribute attach="shadow.mapSize" array={new Float32Array([512, 512])} itemSize={2} />
       </spotLight>
 
@@ -92,22 +92,22 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
     // Get current position
     const position = api.current.translation()
 
-    // ✅ Strong inward pull to center
+    // Strong inward pull to center
     const inward = {
       x: -position.x * 0.1,
       y: -position.y * 0.1,
       z: -position.z * 0.1
     }
 
-    // ✅ Add oscillation per object (increased magnitude slightly for better motion with damping)
+    // Add oscillation per object (increased magnitude slightly for better motion with damping)
     inward.x += Math.sin(t * 0.8 + offset.x) * 0.1
     inward.y += Math.cos(t * 1.0 + offset.y) * 0.1
     inward.z += Math.sin(t * 0.6 + offset.z) * 0.05
 
-    // ✅ Apply impulse and explicitly wake up the body
+    // Apply impulse and explicitly wake up the body
     api.current.applyImpulse(inward, true)
 
-    // ✅ Add small torque for random rotation (increased magnitude slightly)
+    // Add small torque for random rotation (increased magnitude slightly)
     api.current.applyTorqueImpulse({
       x: Math.sin(t + offset.x) * 0.001,
       y: Math.cos(t + offset.y) * 0.001,
@@ -115,18 +115,33 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
     }, true)
   })
 
+  // We need to get the geometry from the Model component.
+  // A common pattern is to pass the geometry down as a prop,
+  // or to use a context if many components need it.
+  // For simplicity here, we'll load it directly within Connector
+  // if not passed, or assume it's passed from App if Model is a child.
+  // Given Model is a child, we'll adjust Model to pass the geometry up/out.
+  // Or, more directly, we can load the GLTF inside Connector as well,
+  // but that's less efficient if many connectors are loading the same model.
+
+  // Let's adjust the Model component to expose its geometry.
+  // Or, more simply, since useGLTF is cheap and cached, we can call it here.
+  const { nodes } = useGLTF('/c-transformed.glb') // Load GLTF here to access geometry for collider
+
   return (
     <RigidBody
-      linearDamping={2} 
-      angularDamping={0.2} 
+      linearDamping={2}    // Original linear damping
+      angularDamping={0.2}
       friction={0.1}
+      restitution={0.8}    // Increased restitution
       position={pos}
       ref={api}
-      colliders={false}
-      canSleep={false} 
-      restitution={0.8}
+      colliders={false} // Still set to false as we're providing custom colliders
+      canSleep={false}
     >
-<ConvexHullCollider args={[nodes.connector.geometry]} />
+      {/* Replaced CuboidColliders with a single ConvexHullCollider */}
+      <ConvexHullCollider args={[nodes.connector.geometry]} />
+      
       {children ? children : <Model {...props} />}
       {accent && <pointLight intensity={3} distance={3} color={props.color} />}
     </RigidBody>
@@ -147,7 +162,7 @@ function Pointer({ vec = new THREE.Vector3() }) {
 
 function Model({ color = 'white', roughness = 0.2, metalness = 0.5, clearcoat = 0.8 }) {
   const ref = useRef()
-  const { nodes } = useGLTF('/c-transformed.glb')
+  const { nodes } = useGLTF('/c-transformed.glb') // useGLTF is cached, so calling it multiple times is fine
 
   useFrame((state, delta) => {
     easing.dampC(ref.current.material.color, color, 0.2, delta)

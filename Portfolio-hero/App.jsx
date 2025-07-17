@@ -108,7 +108,7 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
   })
 
   return (
-    <RigidBody linearDamping={0.5} angularDamping={0.8} friction={0.1} position={pos} ref={api} colliders={false}>
+    <RigidBody linearDamping={2} angularDamping={0.4} friction={0.1} position={pos} ref={api} colliders={false}>
       <CuboidCollider args={[0.38, 1.27, 0.38]} />
       <CuboidCollider args={[1.27, 0.38, 0.38]} />
       <CuboidCollider args={[0.38, 0.38, 1.27]} />

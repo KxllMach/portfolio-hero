@@ -68,11 +68,7 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
   const api = useRef()
   const pos = useMemo(() => position || [r(10), r(10), r(10)], [])
 
-function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.MathUtils.randFloatSpread, accent, ...props }) {
-  const api = useRef()
-  const pos = useMemo(() => position || [r(10), r(10), r(10)], [])
-  
-  // Random offsets for desynchronized motion
+  // Random offsets for individual oscillation
   const offset = useMemo(() => ({
     x: Math.random() * Math.PI * 2,
     y: Math.random() * Math.PI * 2,
@@ -80,31 +76,44 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
   }), [])
 
   useFrame((state, delta) => {
-    delta = Math.min(0.05, delta)
-    const position = api.current.translation()
+    if (!api.current) return
     const t = state.clock.getElapsedTime()
 
-    // Strong inward pull
-    const inwardForce = vec.copy(position).negate().multiplyScalar(0.2)
+    // Get current position
+    const position = api.current.translation()
 
-    // Individual oscillation
-    inwardForce.x += Math.sin(t * 0.8 + offset.x) * 0.08
-    inwardForce.y += Math.cos(t * 1.0 + offset.y) * 0.08
-    inwardForce.z += Math.sin(t * 0.6 + offset.z) * 0.05
+    // ✅ Strong inward pull to center
+    const inward = {
+      x: -position.x * 0.2,
+      y: -position.y * 0.2,
+      z: -position.z * 0.2
+    }
 
-    // Apply impulse for motion
-    api.current.applyImpulse(inwardForce)
+    // ✅ Add oscillation per object
+    inward.x += Math.sin(t * 0.8 + offset.x) * 0.1
+    inward.y += Math.cos(t * 1.0 + offset.y) * 0.1
+    inward.z += Math.sin(t * 0.6 + offset.z) * 0.08
 
-    // Small random torque for rotation
+    // ✅ Apply impulse
+    api.current.applyImpulse(inward)
+
+    // ✅ Add small torque for random rotation
     api.current.applyTorqueImpulse({
-      x: Math.sin(t + offset.x) * 0.0005,
-      y: Math.cos(t + offset.y) * 0.0005,
-      z: Math.sin(t + offset.z) * 0.0005
+      x: Math.sin(t + offset.x) * 0.0008,
+      y: Math.cos(t + offset.y) * 0.0008,
+      z: Math.sin(t + offset.z) * 0.0008
     })
   })
 
   return (
-    <RigidBody linearDamping={4} angularDamping={1} friction={0.1} position={pos} ref={api} colliders={false}>
+    <RigidBody
+      linearDamping={0.8} // ✅ Lower damping for free motion
+      angularDamping={0.5}
+      friction={0.1}
+      position={pos}
+      ref={api}
+      colliders={false}
+    >
       <CuboidCollider args={[0.38, 1.27, 0.38]} />
       <CuboidCollider args={[1.27, 0.38, 0.38]} />
       <CuboidCollider args={[0.38, 0.38, 1.27]} />
@@ -114,16 +123,6 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
   )
 }
 
-  return (
-    <RigidBody linearDamping={4} angularDamping={1} friction={0.1} position={pos} ref={api} colliders={false}>
-      <CuboidCollider args={[0.38, 1.27, 0.38]} />
-      <CuboidCollider args={[1.27, 0.38, 0.38]} />
-      <CuboidCollider args={[0.38, 0.38, 1.27]} />
-      {children ? children : <Model {...props} />}
-      {accent && <pointLight intensity={3} distance={3} color={props.color} />}
-    </RigidBody>
-  )
-}
 
 function Pointer({ vec = new THREE.Vector3() }) {
   const ref = useRef()

@@ -6,19 +6,21 @@ import { CuboidCollider, BallCollider, Physics, RigidBody } from '@react-three/r
 import { EffectComposer, N8AO } from '@react-three/postprocessing'
 import { easing } from 'maath'
 
+// 🎨 Accent colors
 const accents = ['#4060ff', '#20ffa0', '#ff4060', '#ffcc00']
-const shuffle = (accent = 0) => [
-  { color: '#444', roughness: 0.9, metalness: 0 },
-  { color: '#444', roughness: 0.1, metalness: 0.8 },
-  { color: '#444', roughness: 0.9, metalness: 0.55 },
-  { color: 'white', roughness: 0.9, metalness: 0 },
-  { color: 'white', roughness: 0.3, metalness: 0.8 },
-  { color: 'white', roughness: 0.9, metalness: 0 },
-  { color: accents[accent], roughness: 0.9, metalness: 0, accent: true },
-  { color: accents[accent], roughness: 0.1, metalness: 0.8, accent: true },
-  { color: accents[accent], roughness: 0.9, metalness: 0.5, accent: true }
-]
 
+// Shuffle with individual clearcoat, roughness, and metalness
+const shuffle = (accent = 0) => [
+  { color: '#444', roughness: 0.9, metalness: 0, clearcoat: 0.5 },
+  { color: '#444', roughness: 0.1, metalness: 0.8, clearcoat: 1 },
+  { color: '#444', roughness: 0.6, metalness: 0.55, clearcoat: 0.8 },
+  { color: 'white', roughness: 0.7, metalness: 0, clearcoat: 0.5 },
+  { color: 'white', roughness: 0.3, metalness: 0.8, clearcoat: 1 },
+  { color: 'white', roughness: 0.5, metalness: 0.4, clearcoat: 0.7 },
+  { color: accents[accent], roughness: 0.7, metalness: 0.3, clearcoat: 0.8, accent: true },
+  { color: accents[accent], roughness: 0.1, metalness: 0.8, clearcoat: 1, accent: true },
+  { color: accents[accent], roughness: 0.4, metalness: 0.6, clearcoat: 0.9, accent: true }
+]
 
 export default function App() {
   const [accent, click] = useReducer((state) => ++state % accents.length, 0)
@@ -32,25 +34,30 @@ export default function App() {
       gl={{ antialias: false }}
       camera={{ position: [0, 0, 15], fov: 17.5, near: 1, far: 20 }}
     >
+      {/* Dark background */}
       <color attach="background" args={['#151615']} />
-      <ambientLight intensity={0.4} />
-      <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1} castShadow />
-      
+
+      {/* Brighter lighting */}
+      <ambientLight intensity={0.8} />
+      <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={2} castShadow />
+
       <Physics gravity={[0, 0, 0]} maxSubSteps={3}>
         <Pointer />
         {connectors.map((props, i) => <Connector key={i} {...props} />)}
       </Physics>
-      
+
+      {/* AO for depth */}
       <EffectComposer disableNormalPass multisampling={4}>
-        <N8AO distanceFalloff={1} aoRadius={1} intensity={4} />
+        <N8AO distanceFalloff={1} aoRadius={1} intensity={3.5} />
       </EffectComposer>
-      
-      <Environment resolution={256}>
+
+      {/* Environment lighting */}
+      <Environment resolution={512}>
         <group rotation={[-Math.PI / 3, 0, 1]}>
-          <Lightformer form="circle" intensity={4} rotation-x={Math.PI / 2} position={[0, 5, -9]} scale={2} />
-          <Lightformer form="circle" intensity={2} rotation-y={Math.PI / 2} position={[-5, 1, -1]} scale={2} />
-          <Lightformer form="circle" intensity={2} rotation-y={Math.PI / 2} position={[-5, -1, -1]} scale={2} />
-          <Lightformer form="circle" intensity={2} rotation-y={-Math.PI / 2} position={[10, 1, 0]} scale={8} />
+          <Lightformer form="circle" intensity={6} rotation-x={Math.PI / 2} position={[0, 5, -9]} scale={2} />
+          <Lightformer form="circle" intensity={3} rotation-y={Math.PI / 2} position={[-5, 1, -1]} scale={2} />
+          <Lightformer form="circle" intensity={3} rotation-y={Math.PI / 2} position={[-5, -1, -1]} scale={2} />
+          <Lightformer form="circle" intensity={3} rotation-y={-Math.PI / 2} position={[10, 1, 0]} scale={8} />
         </group>
       </Environment>
     </Canvas>
@@ -60,19 +67,19 @@ export default function App() {
 function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.MathUtils.randFloatSpread, accent, ...props }) {
   const api = useRef()
   const pos = useMemo(() => position || [r(10), r(10), r(10)], [])
-  
+
   useFrame((state, delta) => {
     delta = Math.min(0.05, delta)
     api.current?.applyImpulse(vec.copy(api.current.translation()).negate().multiplyScalar(0.15))
   })
-  
+
   return (
     <RigidBody linearDamping={4} angularDamping={1} friction={0.1} position={pos} ref={api} colliders={false}>
       <CuboidCollider args={[0.38, 1.27, 0.38]} />
       <CuboidCollider args={[1.27, 0.38, 0.38]} />
       <CuboidCollider args={[0.38, 0.38, 1.27]} />
       {children ? children : <Model {...props} />}
-      {accent && <pointLight intensity={3} distance={2.5} color={props.color} />}
+      {accent && <pointLight intensity={3} distance={3} color={props.color} />}
     </RigidBody>
   )
 }
@@ -89,7 +96,7 @@ function Pointer({ vec = new THREE.Vector3() }) {
   )
 }
 
-function Model({ color = 'white', roughness = 0.2, metalness = 0.5 }) {
+function Model({ color = 'white', roughness = 0.2, metalness = 0.5, clearcoat = 0.8 }) {
   const ref = useRef()
   const { nodes } = useGLTF('/c-transformed.glb')
 
@@ -100,13 +107,12 @@ function Model({ color = 'white', roughness = 0.2, metalness = 0.5 }) {
   return (
     <mesh ref={ref} castShadow receiveShadow scale={10} geometry={nodes.connector.geometry}>
       <meshPhysicalMaterial
-        clearcoat={1}
+        clearcoat={clearcoat}           // ✅ Now dynamic
         clearcoatRoughness={0.1}
         metalness={metalness}
-        roughness={roughness} 
-        reflectivity={0.5}    
+        roughness={roughness}
+        reflectivity={0.6}
       />
     </mesh>
   )
 }
-

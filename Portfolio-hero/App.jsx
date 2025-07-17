@@ -29,7 +29,6 @@ export default function App() {
   return (
     <Canvas
       onClick={click}
-      // shadows // REMOVED: We'll manage shadows more granularly
       dpr={[1, 1.5]}
       gl={{ antialias: false }}
       camera={{ position: [0, 0, 15], fov: 17.5, near: 1, far: 20 }}
@@ -51,7 +50,7 @@ export default function App() {
         />
         {/* Shadow map resolution: Higher for sharper shadows, lower for more performance */}
         {/* Try 512x512 for balance, or 256x256 if objects are small/performance critical */}
-        <bufferAttribute attach="shadow.mapSize" array={new Float32Array([1024, 1024])} itemSize={2} />
+        <bufferAttribute attach="shadow.mapSize" array={new Float32Array([512, 512])} itemSize={2} />
       </spotLight>
 
       <Physics gravity={[0, 0, 0]} maxSubSteps={3}>
@@ -118,13 +117,13 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
 
   return (
     <RigidBody
-      linearDamping={0.1} // Reduced damping
-      angularDamping={0.1} // Reduced damping
+      linearDamping={2} 
+      angularDamping={0.5} 
       friction={0.1}
       position={pos}
       ref={api}
       colliders={false}
-      canSleep={false} // Prevent sleeping for continuous motion
+      canSleep={false} 
     >
       <CuboidCollider args={[0.38, 1.27, 0.38]} />
       <CuboidCollider args={[1.27, 0.38, 0.38]} />

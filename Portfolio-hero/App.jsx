@@ -68,22 +68,51 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
   const api = useRef()
   const pos = useMemo(() => position || [r(10), r(10), r(10)], [])
 
-useFrame((state, delta) => {
-  delta = Math.min(0.05, delta)
-  const position = api.current.translation()
+function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.MathUtils.randFloatSpread, accent, ...props }) {
+  const api = useRef()
+  const pos = useMemo(() => position || [r(10), r(10), r(10)], [])
+  
+  // Random offsets for desynchronized motion
+  const offset = useMemo(() => ({
+    x: Math.random() * Math.PI * 2,
+    y: Math.random() * Math.PI * 2,
+    z: Math.random() * Math.PI * 2
+  }), [])
 
-  // 1. Strong inward pull
-  const inwardForce = vec.copy(position).negate().multiplyScalar(0.2) 
+  useFrame((state, delta) => {
+    delta = Math.min(0.05, delta)
+    const position = api.current.translation()
+    const t = state.clock.getElapsedTime()
 
-  // 2. Add floating (wave-like motion)
-  const t = state.clock.getElapsedTime()
-  inwardForce.x += Math.sin(t + position.y) * 0.05
-  inwardForce.y += Math.cos(t + position.x) * 0.05
-  inwardForce.z += Math.sin(t * 0.5 + position.z) * 0.03
+    // Strong inward pull
+    const inwardForce = vec.copy(position).negate().multiplyScalar(0.2)
 
-  // 3. Apply impulse
-  api.current?.applyImpulse(inwardForce)
-})
+    // Individual oscillation
+    inwardForce.x += Math.sin(t * 0.8 + offset.x) * 0.08
+    inwardForce.y += Math.cos(t * 1.0 + offset.y) * 0.08
+    inwardForce.z += Math.sin(t * 0.6 + offset.z) * 0.05
+
+    // Apply impulse for motion
+    api.current.applyImpulse(inwardForce)
+
+    // Small random torque for rotation
+    api.current.applyTorqueImpulse({
+      x: Math.sin(t + offset.x) * 0.0005,
+      y: Math.cos(t + offset.y) * 0.0005,
+      z: Math.sin(t + offset.z) * 0.0005
+    })
+  })
+
+  return (
+    <RigidBody linearDamping={4} angularDamping={1} friction={0.1} position={pos} ref={api} colliders={false}>
+      <CuboidCollider args={[0.38, 1.27, 0.38]} />
+      <CuboidCollider args={[1.27, 0.38, 0.38]} />
+      <CuboidCollider args={[0.38, 0.38, 1.27]} />
+      {children ? children : <Model {...props} />}
+      {accent && <pointLight intensity={3} distance={3} color={props.color} />}
+    </RigidBody>
+  )
+}
 
   return (
     <RigidBody linearDamping={4} angularDamping={1} friction={0.1} position={pos} ref={api} colliders={false}>

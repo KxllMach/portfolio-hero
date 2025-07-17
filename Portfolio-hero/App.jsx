@@ -85,9 +85,9 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
     }
 
     // ✅ Add oscillation per object
-    inward.x += Math.sin(t * 0.8 + offset.x) * 0.2
-    inward.y += Math.cos(t * 1.0 + offset.y) * 0.2
-    inward.z += Math.sin(t * 0.6 + offset.z) * 0.08
+    inward.x += Math.sin(t * 0.8 + offset.x) * 0.05
+    inward.y += Math.cos(t * 1.0 + offset.y) * 0.05
+    inward.z += Math.sin(t * 0.6 + offset.z) * 0.02
 
     // ✅ Apply impulse
     api.current.applyImpulse(inward)

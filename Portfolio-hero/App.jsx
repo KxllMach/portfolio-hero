@@ -9,7 +9,7 @@ import { easing } from 'maath'
 // 🎨 Accent colors
 const accents = ['#4060ff', '#20ffa0', '#ff4060', '#ffcc00']
 
-// Shuffle with individual clearcoat, roughness, and metalness
+// Shuffle with clearcoat, roughness, metalness variations
 const shuffle = (accent = 0) => [
   { color: '#444', roughness: 0.75, metalness: 0, clearcoat: 0 },
   { color: '#444', roughness: 0.1, metalness: 0.8, clearcoat: 1 },
@@ -37,16 +37,17 @@ export default function App() {
       {/* Dark background */}
       <color attach="background" args={['#151615']} />
 
-      {/* Brighter lighting */}
+      {/* Lighting */}
       <ambientLight intensity={0.8} />
       <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={2} castShadow />
 
+      {/* Physics */}
       <Physics gravity={[0, 0, 0]} maxSubSteps={3}>
         <Pointer />
         {connectors.map((props, i) => <Connector key={i} {...props} />)}
       </Physics>
 
-      {/* AO for depth */}
+      {/* Ambient Occlusion */}
       <EffectComposer disableNormalPass multisampling={4}>
         <N8AO distanceFalloff={1} aoRadius={1} intensity={3.5} />
       </EffectComposer>
@@ -68,52 +69,43 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
   const api = useRef()
   const pos = useMemo(() => position || [r(10), r(10), r(10)], [])
 
-  // Random offsets for individual oscillation
+  // Random offset for desynchronized motion
   const offset = useMemo(() => ({
     x: Math.random() * Math.PI * 2,
     y: Math.random() * Math.PI * 2,
     z: Math.random() * Math.PI * 2
   }), [])
 
-  useFrame((state, delta) => {
+  useFrame((state) => {
     if (!api.current) return
     const t = state.clock.getElapsedTime()
-
-    // Get current position
     const position = api.current.translation()
 
-    // ✅ Strong inward pull to center
+    // Strong inward pull
     const inward = {
-      x: -position.x * 0.2,
-      y: -position.y * 0.2,
-      z: -position.z * 0.2
+      x: -position.x * 0.18,
+      y: -position.y * 0.18,
+      z: -position.z * 0.18
     }
 
-    // ✅ Add oscillation per object
-    inward.x += Math.sin(t * 0.8 + offset.x) * 0.1
-    inward.y += Math.cos(t * 1.0 + offset.y) * 0.1
-    inward.z += Math.sin(t * 0.6 + offset.z) * 0.08
+    // Gentle oscillation (reduced speed & strength)
+    inward.x += Math.sin(t * 0.3 + offset.x) * 0.03
+    inward.y += Math.cos(t * 0.4 + offset.y) * 0.03
+    inward.z += Math.sin(t * 0.2 + offset.z) * 0.02
 
-    // ✅ Apply impulse
+    // Apply impulse for smooth motion
     api.current.applyImpulse(inward)
 
-    // ✅ Add small torque for random rotation
+    // Small random torque for subtle rotation
     api.current.applyTorqueImpulse({
-      x: Math.sin(t + offset.x) * 0.0008,
-      y: Math.cos(t + offset.y) * 0.0008,
-      z: Math.sin(t + offset.z) * 0.0008
+      x: Math.sin(t + offset.x) * 0.0002,
+      y: Math.cos(t + offset.y) * 0.0002,
+      z: Math.sin(t + offset.z) * 0.0002
     })
   })
 
   return (
-    <RigidBody
-      linearDamping={0.8} // ✅ Lower damping for free motion
-      angularDamping={0.5}
-      friction={0.1}
-      position={pos}
-      ref={api}
-      colliders={false}
-    >
+    <RigidBody linearDamping={4} angularDamping={1} friction={0.1} position={pos} ref={api} colliders={false}>
       <CuboidCollider args={[0.38, 1.27, 0.38]} />
       <CuboidCollider args={[1.27, 0.38, 0.38]} />
       <CuboidCollider args={[0.38, 0.38, 1.27]} />
@@ -123,7 +115,6 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
   )
 }
 
-
 function Pointer({ vec = new THREE.Vector3() }) {
   const ref = useRef()
   useFrame(({ mouse, viewport }) => {
@@ -131,7 +122,7 @@ function Pointer({ vec = new THREE.Vector3() }) {
   })
   return (
     <RigidBody position={[0, 0, 0]} type="kinematicPosition" colliders={false} ref={ref}>
-      <BallCollider args={[1]} />
+      <BallCollider args={[0.4]} /> {/* Smaller collider for softer push */}
     </RigidBody>
   )
 }
@@ -147,7 +138,7 @@ function Model({ color = 'white', roughness = 0.2, metalness = 0.5, clearcoat = 
   return (
     <mesh ref={ref} castShadow receiveShadow scale={10} geometry={nodes.connector.geometry}>
       <meshPhysicalMaterial
-        clearcoat={clearcoat}           // ✅ Now dynamic
+        clearcoat={clearcoat}
         clearcoatRoughness={0.1}
         metalness={metalness}
         roughness={roughness}

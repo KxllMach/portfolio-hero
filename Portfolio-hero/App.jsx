@@ -8,15 +8,15 @@ import { easing } from 'maath'
 
 const accents = ['#4060ff', '#20ffa0', '#ff4060', '#ffcc00']
 const shuffle = (accent = 0) => [
-  { color: '#444', roughness: 0.8, metalness: 0 },
+  { color: '#444', roughness: 0.9, metalness: 0 },
   { color: '#444', roughness: 0.1, metalness: 0.8 },
-  { color: '#444', roughness: 0.25, metalness: 0.55 },
-  { color: 'white', roughness: 0.8, metalness: 0 },
-  { color: 'white', roughness: 0.3, metalness: 0.45 },
-  { color: 'white', roughness: 0.8, metalness: 0.3 },
-  { color: accents[accent], roughness: 0.8, metalness: 0, accent: true },
+  { color: '#444', roughness: 0.9, metalness: 0.55 },
+  { color: 'white', roughness: 0.9, metalness: 0 },
+  { color: 'white', roughness: 0.3, metalness: 0.8 },
+  { color: 'white', roughness: 0.9, metalness: 0.3 },
+  { color: accents[accent], roughness: 0.9, metalness: 0, accent: true },
   { color: accents[accent], roughness: 0.1, metalness: 0.8, accent: true },
-  { color: accents[accent], roughness: 0.25, metalness: 0.5, accent: true }
+  { color: accents[accent], roughness: 0.9, metalness: 0.5, accent: true }
 ]
 
 

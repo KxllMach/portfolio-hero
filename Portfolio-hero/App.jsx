@@ -73,7 +73,7 @@ useFrame((state, delta) => {
   const position = api.current.translation()
 
   // 1. Strong inward pull
-  const inwardForce = vec.copy(position).negate().multiplyScalar(0.4) // was 0.15 → increased
+  const inwardForce = vec.copy(position).negate().multiplyScalar(0.25) // was 0.15 → increased
 
   // 2. Add floating (wave-like motion)
   const t = state.clock.getElapsedTime()

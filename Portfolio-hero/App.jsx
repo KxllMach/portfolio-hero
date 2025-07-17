@@ -89,23 +89,24 @@ function Pointer({ vec = new THREE.Vector3() }) {
   )
 }
 
-function Model({ color = 'white', roughness = 0.2 }) {
+function Model({ color = 'white', roughness = 0.2, metalness = 0.5 }) {
   const ref = useRef()
   const { nodes } = useGLTF('/c-transformed.glb')
-  
+
   useFrame((state, delta) => {
     easing.dampC(ref.current.material.color, color, 0.2, delta)
   })
-  
+
   return (
     <mesh ref={ref} castShadow receiveShadow scale={10} geometry={nodes.connector.geometry}>
       <meshPhysicalMaterial
         clearcoat={1}
         clearcoatRoughness={0.1}
-        metalness={metalness}      
+        metalness={metalness}
         roughness={roughness} 
         reflectivity={0.5}    
       />
     </mesh>
   )
 }
+

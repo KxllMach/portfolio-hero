@@ -68,10 +68,22 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
   const api = useRef()
   const pos = useMemo(() => position || [r(10), r(10), r(10)], [])
 
-  useFrame((state, delta) => {
-    delta = Math.min(0.05, delta)
-    api.current?.applyImpulse(vec.copy(api.current.translation()).negate().multiplyScalar(0.15))
-  })
+useFrame((state, delta) => {
+  delta = Math.min(0.05, delta)
+  const position = api.current.translation()
+
+  // 1. Strong inward pull
+  const inwardForce = vec.copy(position).negate().multiplyScalar(0.4) // was 0.15 → increased
+
+  // 2. Add floating (wave-like motion)
+  const t = state.clock.getElapsedTime()
+  inwardForce.x += Math.sin(t + position.y) * 0.05
+  inwardForce.y += Math.cos(t + position.x) * 0.05
+  inwardForce.z += Math.sin(t * 0.5 + position.z) * 0.03
+
+  // 3. Apply impulse
+  api.current?.applyImpulse(inwardForce)
+})
 
   return (
     <RigidBody linearDamping={4} angularDamping={1} friction={0.1} position={pos} ref={api} colliders={false}>

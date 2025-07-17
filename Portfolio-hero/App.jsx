@@ -1,8 +1,8 @@
 import * as THREE from 'three'
-import { useRef, useReducer, useMemo } from 'react'
+import { useRef, useReducer, useMemo } from 'react' // Removed Suspense
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useGLTF, Environment, Lightformer } from '@react-three/drei'
-import { CuboidCollider, BallCollider, Physics, RigidBody, ConvexHullCollider } from '@react-three/rapier' // Import ConvexHullCollider
+import { CuboidCollider, BallCollider, Physics, RigidBody } from '@react-three/rapier' // Removed ConvexHullCollider
 import { EffectComposer, N8AO } from '@react-three/postprocessing'
 import { easing } from 'maath'
 
@@ -25,6 +25,8 @@ const shuffle = (accent = 0) => [
 export default function App() {
   const [accent, click] = useReducer((state) => ++state % accents.length, 0)
   const connectors = useMemo(() => shuffle(accent), [accent])
+
+  // Removed useGLTF('/c-transformed.glb') from App level
 
   return (
     <Canvas
@@ -53,8 +55,10 @@ export default function App() {
         <bufferAttribute attach="shadow.mapSize" array={new Float32Array([512, 512])} itemSize={2} />
       </spotLight>
 
+      {/* Removed Suspense, as Model now handles its own loading */}
       <Physics gravity={[0, 0, 0]} maxSubSteps={3}>
         <Pointer />
+        {/* No longer passing modelGeometry prop */}
         {connectors.map((props, i) => <Connector key={i} {...props} />)}
       </Physics>
 
@@ -74,6 +78,7 @@ export default function App() {
   )
 }
 
+// No longer accepting modelGeometry as a prop
 function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.MathUtils.randFloatSpread, accent, ...props }) {
   const api = useRef()
   const pos = useMemo(() => position || [r(10), r(10), r(10)], [])
@@ -115,54 +120,34 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
     }, true)
   })
 
-  // We need to get the geometry from the Model component.
-  // A common pattern is to pass the geometry down as a prop,
-  // or to use a context if many components need it.
-  // For simplicity here, we'll load it directly within Connector
-  // if not passed, or assume it's passed from App if Model is a child.
-  // Given Model is a child, we'll adjust Model to pass the geometry up/out.
-  // Or, more directly, we can load the GLTF inside Connector as well,
-  // but that's less efficient if many connectors are loading the same model.
-
-  // Let's adjust the Model component to expose its geometry.
-  // Or, more simply, since useGLTF is cheap and cached, we can call it here.
-  const { nodes } = useGLTF('/c-transformed.glb') // Load GLTF here to access geometry for collider
-
   return (
     <RigidBody
-      linearDamping={2}    // Original linear damping
+      linearDamping={2}    // Reverted to original linear damping
       angularDamping={0.2}
       friction={0.1}
-      restitution={0.8}    // Increased restitution
+      restitution={0.8}    // Kept restitution at 0.8
       position={pos}
       ref={api}
       colliders={false} // Still set to false as we're providing custom colliders
       canSleep={false}
     >
-      {/* Replaced CuboidColliders with a single ConvexHullCollider */}
-      <ConvexHullCollider args={[nodes.connector.geometry]} />
+      {/* Reverted to the three CuboidColliders */}
+      <CuboidCollider args={[0.38, 1.27, 0.38]} />
+      <CuboidCollider args={[1.27, 0.38, 0.38]} />
+      <CuboidCollider args={[0.38, 0.38, 1.27]} />
       
+      {/* No longer passing modelGeometry to Model */}
       {children ? children : <Model {...props} />}
       {accent && <pointLight intensity={3} distance={3} color={props.color} />}
     </RigidBody>
   )
 }
 
-function Pointer({ vec = new THREE.Vector3() }) {
-  const ref = useRef()
-  useFrame(({ mouse, viewport }) => {
-    ref.current?.setNextKinematicTranslation(vec.set((mouse.x * viewport.width) / 2, (mouse.y * viewport.height) / 2, 0))
-  })
-  return (
-    <RigidBody position={[0, 0, 0]} type="kinematicPosition" colliders={false} ref={ref}>
-      <BallCollider args={[0.4]} /> {/* Softer push */}
-    </RigidBody>
-  )
-}
-
+// No longer accepting modelGeometry as a prop
 function Model({ color = 'white', roughness = 0.2, metalness = 0.5, clearcoat = 0.8 }) {
   const ref = useRef()
-  const { nodes } = useGLTF('/c-transformed.glb') // useGLTF is cached, so calling it multiple times is fine
+  // useGLTF is back here for Model to load its own geometry
+  const { nodes } = useGLTF('/c-transformed.glb') 
 
   useFrame((state, delta) => {
     easing.dampC(ref.current.material.color, color, 0.2, delta)
@@ -174,7 +159,7 @@ function Model({ color = 'white', roughness = 0.2, metalness = 0.5, clearcoat = 
       castShadow       // This object casts a shadow
       receiveShadow    // This object receives shadows (including from itself)
       scale={10}
-      geometry={nodes.connector.geometry}
+      geometry={nodes.connector.geometry} // Use geometry from local useGLTF
     >
       <meshPhysicalMaterial
         clearcoat={clearcoat}

@@ -29,14 +29,30 @@ export default function App() {
   return (
     <Canvas
       onClick={click}
-      shadows
+      // shadows // REMOVED: We'll manage shadows more granularly
       dpr={[1, 1.5]}
       gl={{ antialias: false }}
       camera={{ position: [0, 0, 15], fov: 17.5, near: 1, far: 20 }}
     >
       <color attach="background" args={['#151615']} />
       <ambientLight intensity={0.8} />
-      <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={2} castShadow />
+
+      {/* SpotLight configured for focused shadows */}
+      <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={2} castShadow>
+        {/* Configure the shadow camera to tightly encompass the objects */}
+        <perspectiveCamera
+          attach="shadow-camera"
+          args={[
+            15, // fov: Narrower FOV to focus the shadow map on the objects
+            1,  // aspect: Keep it 1 for square shadow map
+            1,  // near: Adjust to clip very close objects if needed
+            20  // far: Adjust to include relevant objects without wasting resolution
+          ]}
+        />
+        {/* Shadow map resolution: Higher for sharper shadows, lower for more performance */}
+        {/* Try 512x512 for balance, or 256x256 if objects are small/performance critical */}
+        <bufferAttribute attach="shadow.mapSize" array={new Float32Array([1024, 1024])} itemSize={2} />
+      </spotLight>
 
       <Physics gravity={[0, 0, 0]} maxSubSteps={3}>
         <Pointer />
@@ -84,31 +100,31 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
       z: -position.z * 0.1
     }
 
-    // ✅ Add oscillation per object
-    inward.x += Math.sin(t * 0.8 + offset.x) * 0.05
-    inward.y += Math.cos(t * 1.0 + offset.y) * 0.05
-    inward.z += Math.sin(t * 0.6 + offset.z) * 0.02
+    // ✅ Add oscillation per object (increased magnitude slightly for better motion with damping)
+    inward.x += Math.sin(t * 0.8 + offset.x) * 0.1
+    inward.y += Math.cos(t * 1.0 + offset.y) * 0.1
+    inward.z += Math.sin(t * 0.6 + offset.z) * 0.05
 
-    // ✅ Apply impulse
-    api.current.applyImpulse(inward)
+    // ✅ Apply impulse and explicitly wake up the body
+    api.current.applyImpulse(inward, true)
 
-    // ✅ Add small torque for random rotation
+    // ✅ Add small torque for random rotation (increased magnitude slightly)
     api.current.applyTorqueImpulse({
-      x: Math.sin(t + offset.x) * 0.0005,
-      y: Math.cos(t + offset.y) * 0.0005,
-      z: Math.sin(t + offset.z) * 0.0005
-    })
+      x: Math.sin(t + offset.x) * 0.001,
+      y: Math.cos(t + offset.y) * 0.001,
+      z: Math.sin(t + offset.z) * 0.001
+    }, true)
   })
 
   return (
     <RigidBody
-      linearDamping={2} // ✅ Lower damping for free motion
-      angularDamping={1.0}
+      linearDamping={0.1} // Reduced damping
+      angularDamping={0.1} // Reduced damping
       friction={0.1}
       position={pos}
       ref={api}
       colliders={false}
-      canSleep={false}
+      canSleep={false} // Prevent sleeping for continuous motion
     >
       <CuboidCollider args={[0.38, 1.27, 0.38]} />
       <CuboidCollider args={[1.27, 0.38, 0.38]} />
@@ -140,7 +156,13 @@ function Model({ color = 'white', roughness = 0.2, metalness = 0.5, clearcoat = 
   })
 
   return (
-    <mesh ref={ref} castShadow receiveShadow scale={10} geometry={nodes.connector.geometry}>
+    <mesh
+      ref={ref}
+      castShadow       // This object casts a shadow
+      receiveShadow    // This object receives shadows (including from itself)
+      scale={10}
+      geometry={nodes.connector.geometry}
+    >
       <meshPhysicalMaterial
         clearcoat={clearcoat}
         clearcoatRoughness={0.1}

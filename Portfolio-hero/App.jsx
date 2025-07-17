@@ -94,15 +94,15 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
 
     // ✅ Add small torque for random rotation
     api.current.applyTorqueImpulse({
-      x: Math.sin(t + offset.x) * 0.08,
-      y: Math.cos(t + offset.y) * 0.08,
-      z: Math.sin(t + offset.z) * 0.08
+      x: Math.sin(t + offset.x) * 0.02,
+      y: Math.cos(t + offset.y) * 0.02,
+      z: Math.sin(t + offset.z) * 0.02
     })
   })
 
   return (
     <RigidBody
-      linearDamping={0.8} // ✅ Lower damping for free motion
+      linearDamping={2} // ✅ Lower damping for free motion
       angularDamping={0.5}
       friction={0.1}
       position={pos}

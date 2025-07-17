@@ -124,6 +124,7 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
       ref={api}
       colliders={false}
       canSleep={false} 
+      restitution={0.5}
     >
       <CuboidCollider args={[0.38, 1.27, 0.38]} />
       <CuboidCollider args={[1.27, 0.38, 0.38]} />

@@ -8,15 +8,15 @@ import { easing } from 'maath'
 
 const accents = ['#4060ff', '#20ffa0', '#ff4060', '#ffcc00']
 const shuffle = (accent = 0) => [
-  { color: '#444', roughness: 0.1 },
-  { color: '#444', roughness: 0.75 },
-  { color: '#444', roughness: 0.75 },
-  { color: 'white', roughness: 0.1 },
-  { color: 'white', roughness: 0.75 },
-  { color: 'white', roughness: 0.1 },
-  { color: accents[accent], roughness: 0.1, accent: true },
-  { color: accents[accent], roughness: 0.75, accent: true },
-  { color: accents[accent], roughness: 0.1, accent: true }
+  { color: '#444', roughness: 0.15 },
+  { color: '#444', roughness: 0.3 },
+  { color: '#444', roughness: 0.25 },
+  { color: 'white', roughness: 0.15 },
+  { color: 'white', roughness: 0.3 },
+  { color: 'white', roughness: 0.2 },
+  { color: accents[accent], roughness: 0.15, accent: true },
+  { color: accents[accent], roughness: 0.3, accent: true },
+  { color: accents[accent], roughness: 0.2, accent: true }
 ]
 
 export default function App() {
@@ -41,7 +41,7 @@ export default function App() {
       </Physics>
       
       <EffectComposer disableNormalPass multisampling={4}>
-        <N8AO distanceFalloff={1} aoRadius={1} intensity={2.5} />
+        <N8AO distanceFalloff={1} aoRadius={1} intensity={4} />
       </EffectComposer>
       
       <Environment resolution={256}>
@@ -61,7 +61,7 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
   const pos = useMemo(() => position || [r(10), r(10), r(10)], [])
   
   useFrame((state, delta) => {
-    delta = Math.min(0.05, delta) // clamp delta for stability
+    delta = Math.min(0.05, delta)
     api.current?.applyImpulse(vec.copy(api.current.translation()).negate().multiplyScalar(0.15))
   })
   
@@ -88,9 +88,9 @@ function Pointer({ vec = new THREE.Vector3() }) {
   )
 }
 
-function Model({ color = 'white', roughness = 0 }) {
+function Model({ color = 'white', roughness = 0.2 }) {
   const ref = useRef()
-  const { nodes, materials } = useGLTF('/c-transformed.glb')
+  const { nodes } = useGLTF('/c-transformed.glb')
   
   useFrame((state, delta) => {
     easing.dampC(ref.current.material.color, color, 0.2, delta)
@@ -98,7 +98,13 @@ function Model({ color = 'white', roughness = 0 }) {
   
   return (
     <mesh ref={ref} castShadow receiveShadow scale={10} geometry={nodes.connector.geometry}>
-      <meshPhysicalMaterial clearcoat={1} metalness={1} roughness={roughness} reflectivity={1} />
+      <meshPhysicalMaterial
+        clearcoat={1}
+        clearcoatRoughness={0.1}
+        metalness={0.6}      // ✅ Balanced metalness
+        roughness={roughness} // ✅ From random config
+        reflectivity={0.5}    // ✅ Avoid pure mirror
+      />
     </mesh>
   )
 }

@@ -103,7 +103,7 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
   return (
     <RigidBody
       linearDamping={2} // ✅ Lower damping for free motion
-      angularDamping={0.5}
+      angularDamping={1.0}
       friction={0.1}
       position={pos}
       ref={api}

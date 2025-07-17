@@ -9,7 +9,7 @@ import { easing } from 'maath'
 // 🎨 Accent colors
 const accents = ['#4060ff', '#20ffa0', '#ff4060', '#ffcc00']
 
-// Shuffle with clearcoat, roughness, metalness variations
+// Shuffle with clearcoat, roughness, and metalness
 const shuffle = (accent = 0) => [
   { color: '#444', roughness: 0.75, metalness: 0, clearcoat: 0 },
   { color: '#444', roughness: 0.1, metalness: 0.8, clearcoat: 1 },
@@ -34,25 +34,19 @@ export default function App() {
       gl={{ antialias: false }}
       camera={{ position: [0, 0, 15], fov: 17.5, near: 1, far: 20 }}
     >
-      {/* Dark background */}
       <color attach="background" args={['#151615']} />
-
-      {/* Lighting */}
       <ambientLight intensity={0.8} />
       <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={2} castShadow />
 
-      {/* Physics */}
       <Physics gravity={[0, 0, 0]} maxSubSteps={3}>
         <Pointer />
         {connectors.map((props, i) => <Connector key={i} {...props} />)}
       </Physics>
 
-      {/* Ambient Occlusion */}
       <EffectComposer disableNormalPass multisampling={4}>
         <N8AO distanceFalloff={1} aoRadius={1} intensity={3.5} />
       </EffectComposer>
 
-      {/* Environment lighting */}
       <Environment resolution={256}>
         <group rotation={[-Math.PI / 3, 0, 1]}>
           <Lightformer form="circle" intensity={6} rotation-x={Math.PI / 2} position={[0, 5, -9]} scale={2} />
@@ -69,7 +63,7 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
   const api = useRef()
   const pos = useMemo(() => position || [r(10), r(10), r(10)], [])
 
-  // Random offset for desynchronized motion
+  // Random offsets for desynchronized motion
   const offset = useMemo(() => ({
     x: Math.random() * Math.PI * 2,
     y: Math.random() * Math.PI * 2,
@@ -81,26 +75,31 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
     const t = state.clock.getElapsedTime()
     const position = api.current.translation()
 
-    // Strong inward pull
+    // ✅ Inward pull
     const inward = {
-      x: -position.x * 0.18,
-      y: -position.y * 0.18,
-      z: -position.z * 0.18
+      x: -position.x * 0.15,
+      y: -position.y * 0.15,
+      z: -position.z * 0.15
     }
 
-    // Gentle oscillation (reduced speed & strength)
-    inward.x += Math.sin(t * 0.3 + offset.x) * 0.03
-    inward.y += Math.cos(t * 0.4 + offset.y) * 0.03
-    inward.z += Math.sin(t * 0.2 + offset.z) * 0.02
+    // ✅ Permanent oscillation (so it never stops moving)
+    inward.x += Math.sin(t * 0.6 + offset.x) * 0.06
+    inward.y += Math.cos(t * 0.7 + offset.y) * 0.06
+    inward.z += Math.sin(t * 0.5 + offset.z) * 0.04
 
-    // Apply impulse for smooth motion
+    // ✅ Tiny wandering force for randomness
+    inward.x += (Math.random() - 0.5) * 0.002
+    inward.y += (Math.random() - 0.5) * 0.002
+    inward.z += (Math.random() - 0.5) * 0.002
+
+    // Apply impulse
     api.current.applyImpulse(inward)
 
-    // Small random torque for subtle rotation
+    // ✅ Gentle random torque
     api.current.applyTorqueImpulse({
-      x: Math.sin(t + offset.x) * 0.0002,
-      y: Math.cos(t + offset.y) * 0.0002,
-      z: Math.sin(t + offset.z) * 0.0002
+      x: Math.sin(t + offset.x) * 0.00015,
+      y: Math.cos(t + offset.y) * 0.00015,
+      z: Math.sin(t + offset.z) * 0.00015
     })
   })
 
@@ -122,7 +121,7 @@ function Pointer({ vec = new THREE.Vector3() }) {
   })
   return (
     <RigidBody position={[0, 0, 0]} type="kinematicPosition" colliders={false} ref={ref}>
-      <BallCollider args={[0.4]} /> {/* Smaller collider for softer push */}
+      <BallCollider args={[0.4]} /> {/* Softer push */}
     </RigidBody>
   )
 }

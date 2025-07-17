@@ -94,9 +94,9 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
 
     // ✅ Add small torque for random rotation
     api.current.applyTorqueImpulse({
-      x: Math.sin(t + offset.x) * 0.02,
-      y: Math.cos(t + offset.y) * 0.02,
-      z: Math.sin(t + offset.z) * 0.02
+      x: Math.sin(t + offset.x) * 0.002,
+      y: Math.cos(t + offset.y) * 0.002,
+      z: Math.sin(t + offset.z) * 0.002
     })
   })
 

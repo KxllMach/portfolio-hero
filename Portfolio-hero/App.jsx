@@ -118,7 +118,7 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
   return (
     <RigidBody
       linearDamping={2} 
-      angularDamping={0.2} 
+      angularDamping={0.5} 
       friction={0.1}
       restitution={0.9}
       position={pos}

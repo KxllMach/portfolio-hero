@@ -1,27 +1,15 @@
 import * as THREE from 'three'
-
 import { useRef, useReducer, useMemo } from 'react'
-
 import { Canvas, useFrame } from '@react-three/fiber'
-
 import { useGLTF, Environment, Lightformer } from '@react-three/drei'
-
 import { CuboidCollider, BallCollider, Physics, RigidBody } from '@react-three/rapier'
-
 import { EffectComposer, N8AO } from '@react-three/postprocessing'
-
 import { easing } from 'maath'
 
-
-
 // 🎨 Accent colors
-
 const accents = ['#4060ff', '#20ffa0', '#ff4060', '#ffcc00']
 
-
-
 // Shuffle with clearcoat, roughness, and metalness
-
 const shuffle = (accent = 0) => [
 
   { color: '#444', roughness: 0.75, metalness: 0, clearcoat: 0 },

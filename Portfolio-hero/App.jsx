@@ -126,9 +126,9 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
       colliders={false}
       canSleep={false} 
     >
-      <CuboidCollider args={[0.38, 1.27, 0.38]} />
-      <CuboidCollider args={[1.27, 0.38, 0.38]} />
-      <CuboidCollider args={[0.38, 0.38, 1.27]} />
+      <CuboidCollider args={[0.6, 1.27, 0.6]} />
+      <CuboidCollider args={[1.27, 0.6, 0.6]} />
+      <CuboidCollider args={[0.6, 0.6, 1.27]} />
       {children ? children : <Model {...props} />}
       {accent && <pointLight intensity={3} distance={3} color={props.color} />}
     </RigidBody>

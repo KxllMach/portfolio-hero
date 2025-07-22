@@ -94,9 +94,9 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
 
     // ✅ Strong inward pull to center
     const inward = {
-      x: -position.x * 0.1,
-      y: -position.y * 0.1,
-      z: -position.z * 0.1
+      x: -position.x * 0.3,
+      y: -position.y * 0.3,
+      z: -position.z * 0.3
     }
 
     // ✅ Add oscillation per object (increased magnitude slightly for better motion with damping)

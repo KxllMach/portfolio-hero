@@ -7,18 +7,19 @@ import { EffectComposer, N8AO } from '@react-three/postprocessing'
 import { easing } from 'maath'
 
 // 🎨 Accent colors
-const accents = ['#4060ff', '#8FFE09', '#ff4060', '#ffcc00']
+const accents = ['#4060ff', '#8FFE09', '#ED141F', '#fff500
+']
 
 // Shuffle with clearcoat, roughness, and metalness
 const shuffle = (accent = 0) => [
   { color: '#444', roughness: 0.75, metalness: 0, clearcoat: 0 },
   { color: '#444', roughness: 0.1, metalness: 0.8, clearcoat: 1 },
   { color: '#444', roughness: 0.75, metalness: 0.2, clearcoat: 0.8 },
-  { color: 'white', roughness: 0.75, metalness: 0, clearcoat: 0.5 },
-  { color: 'white', roughness: 0.75, metalness: 0.8, clearcoat: 1 },
+  { color: 'white', roughness: 0.75, metalness: 0, clearcoat: 0.1},
+  { color: 'white', roughness: 0.75, metalness: 0, clearcoat: 1 },
   { color: 'white', roughness: 0.1, metalness: 0.2, clearcoat: 1 },
   { color: accents[accent], roughness: 0.75, metalness: 0.2, clearcoat: 0.1, accent: true },
-  { color: accents[accent], roughness: 0.1, metalness: 0.8, clearcoat: 1, accent: true },
+  { color: accents[accent], roughness: 0.1, metalness: 0.5, clearcoat: 1, accent: true },
   { color: accents[accent], roughness: 0.1, metalness: 0.2, clearcoat: 1, accent: true }
 ]
 

@@ -130,7 +130,7 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
     if (api.current && triggerImpulse > 0) { // Only apply if triggerImpulse is incremented
       const currentPosition = api.current.translation();
       const impulseDirection = new THREE.Vector3(currentPosition.x, currentPosition.y, currentPosition.z).normalize();
-      const impulseMagnitude = 5; // Adjust this value to control how strong the push is
+      const impulseMagnitude = 50; // Adjust this value to control how strong the push is
 
       api.current.applyImpulse(impulseDirection.multiplyScalar(impulseMagnitude), true);
     }

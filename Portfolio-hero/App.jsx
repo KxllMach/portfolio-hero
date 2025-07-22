@@ -7,7 +7,7 @@ import { EffectComposer, N8AO } from '@react-three/postprocessing'
 import { easing } from 'maath'
 
 // 🎨 Accent colors
-const accents = ['#4060ff', '#20ffa0', '#ff4060', '#ffcc00']
+const accents = ['#4060ff', '#8FFE09', '#ff4060', '#ffcc00']
 
 // Shuffle with clearcoat, roughness, and metalness
 const shuffle = (accent = 0) => [

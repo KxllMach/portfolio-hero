@@ -171,22 +171,38 @@ function Pointer({ vec = new THREE.Vector3() }) {
 
 function Model({ color = 'white', roughness = 0.2, metalness = 0.5, clearcoat = 0.8 }) {
   const ref = useRef()
-  const { nodes } = useGLTF('/c-transformed.glb')
+  const { nodes } = useGLTF('/c-transformed.glb', (loader) => {
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+    loader.setDRACOLoader(dracoLoader);
+  });
+
+  useEffect(() => {
+    // This will now log even if 'nodes' is null or undefined
+    if (nodes) {
+      console.log("GLTF Nodes loaded successfully:", nodes);
+      console.log("Available node names:", Object.keys(nodes));
+    } else {
+      console.log("GLTF Nodes is undefined or null. Model might not be loaded/parsed correctly.");
+    }
+  }, [nodes]); // Dependency on 'nodes'
 
   useFrame((state, delta) => {
-    // Instant color change: directly set the color
     if (ref.current && ref.current.material) {
       ref.current.material.color.set(color);
     }
   })
 
+  // Ensure 'nodes.connector' exists before accessing .geometry
+  // If 'nodes' is null/undefined, this will not throw an error due to optional chaining
+  // but the mesh will simply not render.
   return (
     <mesh
       ref={ref}
-      castShadow       // This object casts a shadow
-      receiveShadow    // This object receives shadows (including from itself)
-      scale={5}
-      geometry={nodes.connector.geometry}
+      castShadow
+      receiveShadow
+      scale={10}
+      geometry={nodes.connector?.geometry}
     >
       <meshPhysicalMaterial
         clearcoat={clearcoat}

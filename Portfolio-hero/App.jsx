@@ -190,6 +190,6 @@ function Model({ color = 'white', roughness = 0.2, metalness = 0.5, clearcoat = 
   return (
     // Render the specific 'connector' mesh from the nodes object
     // This assumes 'nodes.connector' is indeed a THREE.Mesh
-    <primitive object={nodes.connector} scale={10} castShadow receiveShadow />
+    <primitive object={nodes.connector} scale={5} castShadow receiveShadow />
   )
 }

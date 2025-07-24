@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { useRef, useReducer, useMemo, useState, useEffect } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useGLTF, Environment, Lightformer } from '@react-three/drei'
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader' 
 import { CuboidCollider, BallCollider, Physics, RigidBody } from '@react-three/rapier'
 import { EffectComposer, N8AO } from '@react-three/postprocessing'
 import { easing } from 'maath'
@@ -171,7 +172,12 @@ function Pointer({ vec = new THREE.Vector3() }) {
 
 function Model({ color = 'white', roughness = 0.2, metalness = 0.5, clearcoat = 0.8 }) {
   const ref = useRef()
-  const { nodes } = useGLTF('/c-transformed.glb')
+  useGLTF.preload('/c-transformed.glb') // It's good practice to preload
+const { nodes } = useGLTF('/c-transformed.glb', (loader) => {
+  const dracoLoader = new DRACOLoader();
+  dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/'); // Path to Draco decoders
+  loader.setDRACOLoader(dracoLoader);
+});
 
   useFrame((state, delta) => {
     // Instant color change: directly set the color

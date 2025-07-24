@@ -186,7 +186,7 @@ function Model({ color = 'white', roughness = 0.2, metalness = 0.5, clearcoat = 
       castShadow       // This object casts a shadow
       receiveShadow    // This object receives shadows (including from itself)
       scale={10}
-      geometry={nodes.Cylinder.geometry}
+      geometry={nodes.Cylinder.001.geometry}
     >
       <meshPhysicalMaterial
         clearcoat={clearcoat}

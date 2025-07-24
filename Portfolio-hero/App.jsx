@@ -185,7 +185,7 @@ function Model({ color = 'white', roughness = 0.2, metalness = 0.5, clearcoat = 
       ref={ref}
       castShadow       // This object casts a shadow
       receiveShadow    // This object receives shadows (including from itself)
-      scale={10}
+      scale={5}
       geometry={nodes.connector.geometry}
     >
       <meshPhysicalMaterial

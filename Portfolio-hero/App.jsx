@@ -49,7 +49,7 @@ export default function App() {
       <ambientLight intensity={0.8} />
       {/* SpotLight configured for focused shadows - optimized shadow settings */}
       <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={2} castShadow
-        shadow-mapSize={[256, 256]} // Reduced from 512 for better performance
+        shadow-mapSize={[128, 128]} // Reduced from 512 for better performance
         shadow-camera-fov={15}
         shadow-camera-near={1}
         shadow-camera-far={20}
@@ -77,7 +77,7 @@ export default function App() {
         />
       </EffectComposer>
 
-      <Environment resolution={64}> {/* Reduced from 256 for better performance */}
+      <Environment resolution={32}> {/* Reduced from 256 for better performance */}
         <group rotation={[-Math.PI / 3, 0, 1]}>
           <Lightformer form="circle" intensity={6} rotation-x={Math.PI / 2} position={[0, 5, -9]} scale={2} />
           <Lightformer form="circle" intensity={3} rotation-y={Math.PI / 2} position={[-5, 1, -1]} scale={2} />

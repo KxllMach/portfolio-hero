@@ -2,7 +2,8 @@ import * as THREE from 'three'
 import { useRef, useReducer, useMemo, useState, useEffect, Suspense } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useGLTF, Environment, Lightformer } from '@react-three/drei'
-import { CuboidCollider, BallCollider, Physics, RigidBody, Debug } from '@react-three/rapier'
+import { CuboidCollider, BallCollider, Physics, RigidBody } from '@react-three/rapier'
+import { Debug } from '@react-three/rapier/debug' // Corrected import for Debug
 import { EffectComposer, N8AO } from '@react-three/postprocessing'
 import { easing } from 'maath'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader'
@@ -171,24 +172,23 @@ function Model({ color = 'white', roughness = 0.2, metalness = 0.5, clearcoat = 
     loader.setDRACOLoader(dracoLoader);
   });
 
-  // New useEffect to set castShadow/receiveShadow on the loaded mesh
   useEffect(() => {
     if (nodes.connector) {
+      console.log("GLTF 'connector' node loaded:", nodes.connector);
+      console.log("Available node names:", Object.keys(nodes));
+      
       // Set castShadow and receiveShadow directly on the mesh object
       nodes.connector.castShadow = true;
       nodes.connector.receiveShadow = true;
 
-      // Also ensure the material is correctly applied if it's not already
-      // This part is already handled in useFrame for color, but for other properties:
+      // Also ensure the material properties are applied
       if (nodes.connector.isMesh && nodes.connector.material) {
-        // Ensure it's a MeshPhysicalMaterial or compatible
-        // If your GLB has its own material, you might want to clone it or replace it
-        // For now, we'll assume the default material created by useGLTF is fine
-        // or that it's already a MeshPhysicalMaterial.
         nodes.connector.material.roughness = roughness;
         nodes.connector.material.metalness = metalness;
         nodes.connector.material.clearcoat = clearcoat;
       }
+    } else {
+      console.log("GLTF 'connector' node not found or model not fully loaded.");
     }
   }, [nodes.connector, roughness, metalness, clearcoat]); // Dependencies: re-run if node or material props change
 
@@ -199,8 +199,6 @@ function Model({ color = 'white', roughness = 0.2, metalness = 0.5, clearcoat = 
   })
 
   return (
-    // Render the specific 'connector' mesh from the nodes object
-    // Removed castShadow and receiveShadow props from here
     <primitive object={nodes.connector} scale={0.5} /> 
   )
 }

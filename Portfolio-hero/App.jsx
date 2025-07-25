@@ -41,8 +41,6 @@ export default function App() {
         position: 'fixed',
         top: '50%',
         left: '50%',
-        marginTop: '-50vw', // Half of height
-        marginLeft: '-50vh', // Half of width
       };
     }
     return { width: '100%', height: '100%' };

@@ -77,7 +77,7 @@ export default function App() {
         />
       </EffectComposer>
 
-      <Environment resolution={128}> {/* Reduced from 256 for better performance */}
+      <Environment resolution={64}> {/* Reduced from 256 for better performance */}
         <group rotation={[-Math.PI / 3, 0, 1]}>
           <Lightformer form="circle" intensity={6} rotation-x={Math.PI / 2} position={[0, 5, -9]} scale={2} />
           <Lightformer form="circle" intensity={3} rotation-y={Math.PI / 2} position={[-5, 1, -1]} scale={2} />

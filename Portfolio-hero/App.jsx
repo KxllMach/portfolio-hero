@@ -153,7 +153,7 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
       linearDamping={2}  
       angularDamping={0.5}  
       friction={0.1}
-      restitution={0.9}
+      restitution={0.7}
       position={pos}
       ref={api}
       colliders={false}

@@ -26,6 +26,10 @@ export default function App() {
   // State to trigger impulse on click
   const [triggerImpulse, setTriggerImpulse] = useState(0);
   
+  // Dynamic quality detection for mobile
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const isPortrait = window.innerHeight > window.innerWidth;
+  
   const connectors = useMemo(() => shuffle(accent), [accent])
 
   // Handle canvas click: change accent and trigger impulse - optimized with useCallback
@@ -37,12 +41,15 @@ export default function App() {
   return (
     <Canvas
       onClick={handleCanvasClick} // Use the new handler
-      dpr={[1, 1.5]}
+      dpr={isMobile ? (isPortrait ? [0.6, 1] : [0.8, 1.2]) : [1, 1.5]}
       gl={{ 
         antialias: false,
-        powerPreference: "high-performance", // Request high-performance GPU
-        stencil: false, // Disable stencil buffer for better performance
-        toneMapping: THREE.NoToneMapping, // Disable tone mapping for flatter lighting
+        powerPreference: "high-performance",
+        stencil: false,
+        toneMapping: THREE.NoToneMapping,
+        alpha: false, // Disable alpha for better performance
+        depth: true,
+        preserveDrawingBuffer: false, // Better memory management
       }}
       camera={{ position: [0, 0, 15], fov: 17.5, near: 1, far: 20 }}
     >
@@ -71,13 +78,13 @@ export default function App() {
       {/* Simplified post-processing */}
       <EffectComposer 
         disableNormalPass 
-        multisampling={1} // Reduced from 2 for better performance
+        multisampling={isMobile ? 0 : 1} // Disabled multisampling on mobile
       >
         <N8AO 
           distanceFalloff={2} 
           aoRadius={0.5} // Reduced AO radius
           intensity={2} // Reduced intensity
-          samples={8} // Heavily reduced samples for better performance
+          samples={isMobile ? 4 : 8} // Reduced samples for mobile only
         />
       </EffectComposer>
 

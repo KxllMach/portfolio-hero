@@ -61,8 +61,8 @@ export default function App() {
         timeStep={1/60} // Fixed timestep for consistent performance
       >
         <Pointer />
-        {/* Pass triggerImpulse to each Connector - better key for React reconciliation */}
-        {connectors.map((props, i) => <Connector key={`${accent}-${i}`} triggerImpulse={triggerImpulse} {...props} />)}
+        {/* Pass triggerImpulse to each Connector */}
+        {connectors.map((props, i) => <Connector key={i} triggerImpulse={triggerImpulse} {...props} />)}
       </Physics>
 
       <EffectComposer 

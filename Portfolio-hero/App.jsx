@@ -1,106 +1,144 @@
 import * as THREE from 'three'
-import { useRef, useReducer, useMemo, useState, useEffect, useCallback } from 'react'
+import { useRef, useReducer, useMemo, useState, useEffect, useCallback, Suspense } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { useGLTF, Environment, Lightformer } from '@react-three/drei'
+import { useGLTF, Environment, Lightformer, Text } from '@react-three/drei' // Added Text for fallback
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader' // Added DRACOLoader import
+
+// Keeping other imports for completeness, though not used in this debug version
 import { CuboidCollider, BallCollider, Physics, RigidBody } from '@react-three/rapier'
 import { EffectComposer, N8AO } from '@react-three/postprocessing'
+import { easing } from 'maath'
 
-// 🎨 Accent colors
-const accents = ['#4060ff', '#8FFE09', '#ED141F', '#fff500']
+// --- NEW TEST MODEL COMPONENT (for focused GLTF debugging) ---
+function TestModel() {
+  // Load the GLTF model
+  const { scene, nodes, materials } = useGLTF('/c-transformed.glb', (loader) => {
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+    loader.setDRACOLoader(dracoLoader);
+  });
 
-// Shuffle with clearcoat, roughness, and metalness
-const shuffle = (accent = 0) => [
-  { color: '#444', roughness: 0.75, metalness: 0, clearcoat: 0 },
-  { color: '#444', roughness: 0.1, metalness: 0.8, clearcoat: 1 },
-  { color: '#444', roughness: 0.75, metalness: 0.2, clearcoat: 0.8 },
-  { color: 'white', roughness: 0.75, metalness: 0, clearcoat: 0.1},
-  { color: 'white', roughness: 0.75, metalness: 0, clearcoat: 1 },
-  { color: 'white', roughness: 0.1, metalness: 0.2, clearcoat: 1 },
-  { color: accents[accent], roughness: 0.75, metalness: 0.2, clearcoat: 0.1, accent: true },
-  { color: accents[accent], roughness: 0.1, metalness: 0.5, clearcoat: 1, accent: true },
-  { color: accents[accent], roughness: 0.1, metalness: 0.2, clearcoat: 1, accent: true }
-]
+  // This useEffect will fire when useGLTF returns its values (scene, nodes, materials)
+  useEffect(() => {
+    console.log("--- TestModel GLTF Load Status ---");
+    console.log("Full GLTF Object (from useGLTF):", { scene, nodes, materials }); // Log all outputs
+
+    if (scene) {
+      console.log("GLTF Scene object is available.");
+      console.log("Scene children:", scene.children); // Check what's directly under the scene
+
+      let meshFound = false;
+      scene.traverse((obj) => {
+        if (obj.isMesh) {
+          meshFound = true;
+          console.log("Found mesh during scene traverse:", obj.name || "Unnamed Mesh", obj.geometry, obj.material);
+          // Apply a basic material if the model has none or its material is problematic
+          if (!obj.material) {
+            obj.material = new THREE.MeshStandardMaterial({ color: 'hotpink' });
+            console.log("Applied default hotpink material to mesh:", obj.name || "Unnamed Mesh");
+          }
+          // Ensure shadows are set for debugging visibility
+          obj.castShadow = true;
+          obj.receiveShadow = true;
+        }
+      });
+      if (!meshFound) {
+        console.log("No meshes found in the loaded scene during traverse.");
+      }
+    } else {
+      console.log("GLTF Scene object is null/undefined. Model might not be parsing correctly.");
+    }
+    console.log("----------------------------------");
+  }, [scene, nodes, materials]); // Depend on all outputs of useGLTF
+
+  // Render the entire scene if it's loaded
+  if (scene) {
+    return <primitive object={scene} scale={0.5} position={[0, 0, 0]} />; // Render at origin, scale 0.5
+  }
+  // If scene is not loaded yet, Suspense fallback will handle it.
+  return null;
+}
+// --- END NEW TEST MODEL COMPONENT ---
+
 
 export default function App() {
-  const [accent, click] = useReducer((state) => ++state % accents.length, 0)
-  // State to trigger impulse on click
-  const [triggerImpulse, setTriggerImpulse] = useState(0);
-  
-  const connectors = useMemo(() => shuffle(accent), [accent])
-
-  // Handle canvas click: change accent and trigger impulse - optimized with useCallback
-  const handleCanvasClick = useCallback(() => {
-    click(); // Change color accent
-    setTriggerImpulse(prev => prev + 1); // Increment to trigger impulse
-  }, []);
+  // All states and handlers related to connectors/physics are removed for this debug version
+  // const [accent, click] = useReducer((state) => ++state % accents.length, 0)
+  // const [triggerImpulse, setTriggerImpulse] = useState(0);
+  // const connectors = useMemo(() => shuffle(accent), [accent])
+  // const handleCanvasClick = useCallback(() => { ... }, []);
 
   return (
     <Canvas
-      onClick={handleCanvasClick} // Use the new handler
+      // onClick={handleCanvasClick} // Temporarily disabled click handler
       dpr={[1, 1.5]}
       gl={{ 
         antialias: false,
-        powerPreference: "high-performance", // Request high-performance GPU
-        stencil: false, // Disable stencil buffer for better performance
+        powerPreference: "high-performance",
+        stencil: false,
       }}
-      camera={{ position: [0, 0, 15], fov: 17.5, near: 1, far: 20 }}
+      // Adjusted camera position and FOV for a single, scaled object
+      camera={{ position: [0, 0, 10], fov: 40, near: 0.1, far: 50 }} 
     >
       <color attach="background" args={['#151615']} />
       <ambientLight intensity={0.8} />
-      {/* SpotLight configured for focused shadows - optimized shadow settings */}
       <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={2} castShadow
-        shadow-mapSize={[256, 256]} // Reduced from 512 for better performance
+        shadow-mapSize={[256, 256]}
         shadow-camera-fov={15}
         shadow-camera-near={1}
         shadow-camera-far={20}
       />
 
-      <Physics 
-        gravity={[0, 0, 0]} 
-        maxSubSteps={2} // Reduced from 3 for better performance
-        timeStep={1/60} // Fixed timestep for consistent performance
-      >
+      {/* Suspense with a visible fallback so you know if it's loading */}
+      <Suspense fallback={<Text color="white" anchorX="center" anchorY="middle">Loading 3D Model...</Text>}>
+        {/* RENDER ONLY THE TEST MODEL HERE */}
+        <TestModel /> 
+      </Suspense>
+
+      {/* Temporarily removed all other components to isolate the GLTF loading issue */}
+      {/* <Physics gravity={[0, 0, 0]} maxSubSteps={2} timeStep={1/60}>
         <Pointer />
-        {/* Pass triggerImpulse to each Connector */}
         {connectors.map((props, i) => <Connector key={i} triggerImpulse={triggerImpulse} {...props} />)}
       </Physics>
 
       <EffectComposer 
         disableNormalPass 
-        multisampling={2} // Reduced from 4 for better performance
+        multisampling={2}
       >
         <N8AO 
           distanceFalloff={1} 
           aoRadius={1} 
           intensity={3.5}
-          samples={16} // Reduced samples for better performance
+          samples={16}
         />
       </EffectComposer>
 
-      <Environment resolution={64}> {/* Reduced from 256 for better performance */}
+      <Environment resolution={64}>
         <group rotation={[-Math.PI / 3, 0, 1]}>
           <Lightformer form="circle" intensity={6} rotation-x={Math.PI / 2} position={[0, 5, -9]} scale={2} />
           <Lightformer form="circle" intensity={3} rotation-y={Math.PI / 2} position={[-5, 1, -1]} scale={2} />
           <Lightformer form="circle" intensity={3} rotation-y={Math.PI / 2} position={[-5, -1, -1]} scale={2} />
           <Lightformer form="circle" intensity={3} rotation-y={-Math.PI / 2} position={[10, 1, 0]} scale={8} />
         </group>
-      </Environment>
+      </Environment> */}
     </Canvas>
   )
 }
 
+// Keeping Connector, Pointer, and Model components below for reference,
+// but they are NOT rendered in App for this specific debug test.
+// You will re-integrate them once TestModel confirms GLTF loading.
+
 function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.MathUtils.randFloatSpread, accent, triggerImpulse, ...props }) {
   const api = useRef()
-  const pos = useMemo(() => position || [r(10), r(10), r(10)], [position])
+  const pos = useMemo(() => position || [r(3), r(3), r(3)], [position])
 
-  // Random offsets for individual oscillation - cached for better performance
   const offset = useMemo(() => ({
     x: Math.random() * Math.PI * 2,
     y: Math.random() * Math.PI * 2,
     z: Math.random() * Math.PI * 2
   }), [])
 
-  // Pre-calculate oscillation speeds for performance
   const oscSpeeds = useMemo(() => ({
     x: 0.8,
     y: 1.0,
@@ -111,10 +149,8 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
     if (!api.current) return
     const t = state.clock.getElapsedTime()
 
-    // Get current position
     const currentPosition = api.current.translation()
 
-    // ✅ Strong inward pull to center - batch calculations for better performance
     const forceMultiplier = 0.4
     const inward = {
       x: -currentPosition.x * forceMultiplier + Math.sin(t * oscSpeeds.x + offset.x) * 0.1,
@@ -122,10 +158,8 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
       z: -currentPosition.z * forceMultiplier + Math.sin(t * oscSpeeds.z + offset.z) * 0.05
     }
 
-    // ✅ Apply impulse and explicitly wake up the body
     api.current.applyImpulse(inward, true)
 
-    // ✅ Add small torque for random rotation - batch calculations
     const torqueStrength = 0.001
     api.current.applyTorqueImpulse({
       x: Math.sin(t + offset.x) * torqueStrength,
@@ -134,26 +168,23 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
     }, true)
   })
 
-  // Effect to apply impulse when triggerImpulse changes - optimized to reuse vector
   useEffect(() => {
-    if (api.current && triggerImpulse > 0) { // Only apply if triggerImpulse is incremented
+    if (api.current && triggerImpulse > 0) {
       const currentPosition = api.current.translation();
-      
-      // Reuse the existing vec object to avoid creating new Vector3
-      vec.set(currentPosition.x, currentPosition.y, currentPosition.z)
-      vec.normalize()
-      vec.multiplyScalar(50) // Adjust this value to control how strong the push is
+      const impulseDirection = new THREE.Vector3(currentPosition.x, currentPosition.y, currentPosition.z).normalize();
+      const impulseMagnitude = 0;
 
-      api.current.applyImpulse(vec, true);
+      api.current.applyImpulse(impulseDirection.multiplyScalar(impulseMagnitude), true);
+      console.log(`Applied impulse to connector at ${currentPosition.x.toFixed(2)}, ${currentPosition.y.toFixed(2)}, ${currentPosition.z.toFixed(2)}`);
     }
-  }, [triggerImpulse, vec]); // Include vec in dependencies
+  }, [triggerImpulse, vec]);
 
   return (
     <RigidBody
       linearDamping={2}  
       angularDamping={0.5}  
       friction={0.1}
-      restitution={0.7}
+      restitution={0.9}
       position={pos}
       ref={api}
       colliders={false}
@@ -177,37 +208,44 @@ function Pointer({ vec = new THREE.Vector3() }) {
   
   return (
     <RigidBody position={[0, 0, 0]} type="kinematicPosition" colliders={false} ref={ref}>
-      <BallCollider args={[0.4]} /> {/* Softer push */}
+      <BallCollider args={[0.4]} />
     </RigidBody>
   )
 }
 
 function Model({ color = 'white', roughness = 0.2, metalness = 0.5, clearcoat = 0.8 }) {
   const ref = useRef()
-  const { nodes } = useGLTF('/c-transformed.glb')
+  const { nodes } = useGLTF('/c-transformed.glb', (loader) => {
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+    loader.setDRACOLoader(dracoLoader);
+  });
+
+  useEffect(() => {
+    if (nodes.connector) {
+      console.log("GLTF 'connector' node loaded:", nodes.connector);
+      console.log("Available node names:", Object.keys(nodes));
+      
+      nodes.connector.castShadow = true;
+      nodes.connector.receiveShadow = true;
+
+      if (nodes.connector.isMesh && nodes.connector.material) {
+        nodes.connector.material.roughness = roughness;
+        nodes.connector.material.metalness = metalness;
+        nodes.connector.material.clearcoat = clearcoat;
+      }
+    } else {
+      console.log("GLTF 'connector' node not found or model not fully loaded.");
+    }
+  }, [nodes.connector, roughness, metalness, clearcoat]);
 
   useFrame((state, delta) => {
-    // Instant color change: directly set the color
-    if (ref.current && ref.current.material) {
-      ref.current.material.color.set(color);
+    if (nodes.connector && nodes.connector.isMesh && nodes.connector.material) {
+      nodes.connector.material.color.set(color);
     }
   })
 
   return (
-    <mesh
-      ref={ref}
-      castShadow       // This object casts a shadow
-      receiveShadow    // This object receives shadows (including from itself)
-      scale={10}
-      geometry={nodes.connector.geometry}
-    >
-      <meshPhysicalMaterial
-        clearcoat={clearcoat}
-        clearcoatRoughness={0.1}
-        metalness={metalness}
-        roughness={roughness}
-        reflectivity={0.6}
-      />
-    </mesh>
+    <primitive object={nodes.connector} scale={0.5} /> 
   )
 }

@@ -30,6 +30,26 @@ export default function App() {
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   const isPortrait = window.innerHeight > window.innerWidth;
   
+  // Force landscape canvas dimensions for better GPU performance
+  const canvasStyle = useMemo(() => {
+    if (isMobile && isPortrait) {
+      const canvasWidth = Math.max(window.innerWidth, window.innerHeight);
+      const canvasHeight = Math.min(window.innerWidth, window.innerHeight);
+      return {
+        width: `${canvasWidth}px`,
+        height: `${canvasHeight}px`,
+        transform: 'rotate(90deg)',
+        transformOrigin: 'center center',
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        marginTop: `-${canvasHeight / 2}px`,
+        marginLeft: `-${canvasWidth / 2}px`
+      };
+    }
+    return {};
+  }, [isMobile, isPortrait]);
+  
   const connectors = useMemo(() => shuffle(accent), [accent])
 
   // Handle canvas click: change accent and trigger impulse - optimized with useCallback
@@ -39,20 +59,22 @@ export default function App() {
   }, []);
 
   return (
-    <Canvas
-      onClick={handleCanvasClick} // Use the new handler
-      dpr={isMobile ? (isPortrait ? [0.6, 1] : [0.8, 1.2]) : [1, 1.5]}
-      gl={{ 
-        antialias: false,
-        powerPreference: "high-performance",
-        stencil: false,
-        toneMapping: THREE.NoToneMapping,
-        alpha: false, // Disable alpha for better performance
-        depth: true,
-        preserveDrawingBuffer: false, // Better memory management
-      }}
-      camera={{ position: [0, 0, 15], fov: 17.5, near: 1, far: 20 }}
-    >
+    <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative' }}>
+      <Canvas
+        onClick={handleCanvasClick}
+        style={canvasStyle}
+        dpr={isMobile ? [0.8, 1.2] : [1, 1.5]}
+        gl={{ 
+          antialias: false,
+          powerPreference: "high-performance",
+          stencil: false,
+          toneMapping: THREE.NoToneMapping,
+          alpha: false,
+          depth: true,
+          preserveDrawingBuffer: false,
+        }}
+        camera={{ position: [0, 0, 15], fov: 17.5, near: 1, far: 20 }}
+      >
       <color attach="background" args={['#151615']} />
       
       {/* Simplified lighting setup - less realistic, better performance */}
@@ -78,13 +100,13 @@ export default function App() {
       {/* Simplified post-processing */}
       <EffectComposer 
         disableNormalPass 
-        multisampling={isMobile ? 0 : 1} // Disabled multisampling on mobile
+        multisampling={isMobile ? 0 : 1}
       >
         <N8AO 
           distanceFalloff={2} 
-          aoRadius={0.5} // Reduced AO radius
-          intensity={2} // Reduced intensity
-          samples={isMobile ? 4 : 8} // Reduced samples for mobile only
+          aoRadius={0.5}
+          intensity={2}
+          samples={isMobile ? 4 : 8}
         />
       </EffectComposer>
 
@@ -97,6 +119,7 @@ export default function App() {
         </group>
       </Environment>
     </Canvas>
+    </div>
   )
 }
 

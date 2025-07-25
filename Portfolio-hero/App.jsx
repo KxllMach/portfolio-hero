@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { useRef, useReducer, useMemo, useState, useEffect, Suspense } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useGLTF, Environment, Lightformer } from '@react-three/drei'
-import { CuboidCollider, BallCollider, Physics, RigidBody } from '@react-three/rapier'
+import { CuboidCollider, BallCollider, Physics, RigidBody, Debug } from '@react-three/rapier' // Added Debug
 import { EffectComposer, N8AO } from '@react-three/postprocessing'
 import { easing } from 'maath'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader'
@@ -39,7 +39,8 @@ export default function App() {
       onClick={handleCanvasClick}
       dpr={[1, 1.5]}
       gl={{ antialias: false }}
-      camera={{ position: [0, 0, 15], fov: 17.5, near: 1, far: 20 }}
+      // Adjusted camera position and FOV to see more objects
+      camera={{ position: [0, 0, 25], fov: 30, near: 1, far: 50 }} 
     >
       <color attach="background" args={['#151615']} />
       <ambientLight intensity={0.8} />
@@ -58,7 +59,8 @@ export default function App() {
 
       <Suspense fallback={null}>
         <Physics gravity={[0, 0, 0]} maxSubSteps={3}>
-          <Pointer />
+          <Debug /> {/* Physics Debug Renderer - REMOVE THIS LINE AFTER DEBUGGING */}
+          {/* <Pointer /> */} {/* Temporarily commented out Pointer */}
           {connectors.map((props, i) => <Connector key={i} triggerImpulse={triggerImpulse} {...props} />)}
         </Physics>
       </Suspense>
@@ -81,7 +83,8 @@ export default function App() {
 
 function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.MathUtils.randFloatSpread, accent, triggerImpulse, ...props }) {
   const api = useRef()
-  const pos = useMemo(() => position || [r(10), r(10), r(10)], [])
+  // Reduced initial spread for objects to spawn closer to the center
+  const pos = useMemo(() => position || [r(5), r(5), r(5)], []) 
 
   const offset = useMemo(() => ({
     x: Math.random() * Math.PI * 2,
@@ -118,7 +121,8 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
     if (api.current && triggerImpulse > 0) {
       const currentPosition = api.current.translation();
       const impulseDirection = new THREE.Vector3(currentPosition.x, currentPosition.y, currentPosition.z).normalize();
-      const impulseMagnitude = 50;
+      // Temporarily reduced impulse magnitude to avoid pushing objects out of view immediately
+      const impulseMagnitude = 0; // Set to 0 for initial debugging, or a very small number like 1
 
       api.current.applyImpulse(impulseDirection.multiplyScalar(impulseMagnitude), true);
       console.log(`Applied impulse to connector at ${currentPosition.x.toFixed(2)}, ${currentPosition.y.toFixed(2)}, ${currentPosition.z.toFixed(2)}`);
@@ -135,6 +139,7 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
       colliders={false}
       canSleep={false}  
     >
+      {/* Reverted CuboidCollider args to your original values (for scale=0.5 visual match) */}
       <CuboidCollider args={[0.6, 1.27, 0.6]} />
       <CuboidCollider args={[1.27, 0.6, 0.6]} />
       <CuboidCollider args={[0.6, 0.6, 1.27]} />
@@ -152,14 +157,14 @@ function Pointer({ vec = new THREE.Vector3() }) {
   
   return (
     <RigidBody position={[0, 0, 0]} type="kinematicPosition" colliders={false} ref={ref}>
-      <BallCollider args={[0.4]} />
+      {/* Adjusted BallCollider args for smaller objects */}
+      <BallCollider args={[0.04]} /> 
     </RigidBody>
   )
 }
 
 function Model({ color = 'white', roughness = 0.2, metalness = 0.5, clearcoat = 0.8 }) {
   const ref = useRef()
-  // Configure useGLTF with DRACOLoader
   const { nodes } = useGLTF('/c-transformed.glb', (loader) => {
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
@@ -167,29 +172,29 @@ function Model({ color = 'white', roughness = 0.2, metalness = 0.5, clearcoat = 
   });
 
   useEffect(() => {
-    if (nodes) {
-      console.log("GLTF Nodes loaded:", nodes);
+    if (nodes.connector) {
+      console.log("GLTF 'connector' node loaded:", nodes.connector);
       console.log("Available node names:", Object.keys(nodes));
     } else {
-      console.log("GLTF Nodes is undefined, model might not be loaded yet or failed.");
+      console.log("GLTF 'connector' node not found or model not fully loaded.");
     }
   }, [nodes]);
 
   useFrame((state, delta) => {
-    // Check if the specific mesh 'connector' exists and has a material
+    // Ensure the material is a MeshPhysicalMaterial for color setting
     if (nodes.connector && nodes.connector.isMesh && nodes.connector.material) {
-      // Directly set the color on the material of the 'connector' mesh
+      // If the material is not MeshPhysicalMaterial, it might not have .color.set
+      // Ensure it's the right type or create a new one.
+      // For now, let's assume it's MeshPhysicalMaterial or compatible.
       nodes.connector.material.color.set(color);
-      // You can also apply other material properties here if needed, e.g.:
-      // nodes.connector.material.roughness = roughness;
-      // nodes.connector.material.metalness = metalness;
-      // nodes.connector.material.clearcoat = clearcoat;
+      // Also ensure other properties are applied if they come from the prop
+      nodes.connector.material.roughness = roughness;
+      nodes.connector.material.metalness = metalness;
+      nodes.connector.material.clearcoat = clearcoat;
     }
   })
 
   return (
-    // Render the specific 'connector' mesh from the nodes object
-    // This assumes 'nodes.connector' is indeed a THREE.Mesh
-    <primitive object={nodes.connector} scale={1} castShadow receiveShadow />
+    <primitive object={nodes.connector} scale={0.5} castShadow receiveShadow /> {/* Model scale 0.5 */}
   )
 }

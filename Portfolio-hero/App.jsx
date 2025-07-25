@@ -42,17 +42,20 @@ export default function App() {
         antialias: false,
         powerPreference: "high-performance", // Request high-performance GPU
         stencil: false, // Disable stencil buffer for better performance
+        toneMapping: THREE.NoToneMapping, // Disable tone mapping for flatter lighting
       }}
       camera={{ position: [0, 0, 15], fov: 17.5, near: 1, far: 20 }}
     >
       <color attach="background" args={['#151615']} />
-      <ambientLight intensity={0.8} />
-      {/* SpotLight configured for focused shadows - optimized shadow settings */}
-      <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={2} castShadow
-        shadow-mapSize={[128, 128]} // Reduced from 512 for better performance
-        shadow-camera-fov={15}
-        shadow-camera-near={1}
-        shadow-camera-far={20}
+      
+      {/* Simplified lighting setup - less realistic, better performance */}
+      <ambientLight intensity={1.2} /> {/* Increased ambient to reduce shadows */}
+      
+      {/* Single directional light instead of spotlight - no shadows */}
+      <directionalLight 
+        position={[5, 5, 5]} 
+        intensity={0.8}
+        castShadow={false} // Disabled shadows for major performance boost
       />
 
       <Physics 
@@ -65,24 +68,25 @@ export default function App() {
         {connectors.map((props, i) => <Connector key={i} triggerImpulse={triggerImpulse} {...props} />)}
       </Physics>
 
+      {/* Simplified post-processing */}
       <EffectComposer 
         disableNormalPass 
-        multisampling={2} // Reduced from 4 for better performance
+        multisampling={1} // Reduced from 2 for better performance
       >
         <N8AO 
-          distanceFalloff={1} 
-          aoRadius={1} 
-          intensity={3.5}
-          samples={16} // Reduced samples for better performance
+          distanceFalloff={2} 
+          aoRadius={0.5} // Reduced AO radius
+          intensity={2} // Reduced intensity
+          samples={8} // Heavily reduced samples for better performance
         />
       </EffectComposer>
 
-      <Environment resolution={32}> {/* Reduced from 256 for better performance */}
+      {/* Simplified environment - much less realistic lighting */}
+      <Environment resolution={16}> {/* Heavily reduced from 32 */}
         <group rotation={[-Math.PI / 3, 0, 1]}>
-          <Lightformer form="circle" intensity={6} rotation-x={Math.PI / 2} position={[0, 5, -9]} scale={2} />
-          <Lightformer form="circle" intensity={3} rotation-y={Math.PI / 2} position={[-5, 1, -1]} scale={2} />
-          <Lightformer form="circle" intensity={3} rotation-y={Math.PI / 2} position={[-5, -1, -1]} scale={2} />
-          <Lightformer form="circle" intensity={3} rotation-y={-Math.PI / 2} position={[10, 1, 0]} scale={8} />
+          {/* Reduced to just 2 lightformers with lower intensity */}
+          <Lightformer form="circle" intensity={2} rotation-x={Math.PI / 2} position={[0, 5, -9]} scale={2} />
+          <Lightformer form="circle" intensity={1.5} rotation-y={-Math.PI / 2} position={[10, 1, 0]} scale={8} />
         </group>
       </Environment>
     </Canvas>
@@ -163,7 +167,8 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
       <CuboidCollider args={[1.27, 0.6, 0.6]} />
       <CuboidCollider args={[0.6, 0.6, 1.27]} />
       {children ? children : <Model {...props} />}
-      {accent && <pointLight intensity={3} distance={3} color={props.color} decay={2} />}
+      {/* Reduced accent light intensity and distance */}
+      {accent && <pointLight intensity={1.5} distance={2} color={props.color} decay={2} />}
     </RigidBody>
   )
 }
@@ -196,8 +201,8 @@ function Model({ color = 'white', roughness = 0.2, metalness = 0.5, clearcoat = 
   return (
     <mesh
       ref={ref}
-      castShadow       // This object casts a shadow
-      receiveShadow    // This object receives shadows (including from itself)
+      castShadow={false}    // Disabled shadow casting for better performance
+      receiveShadow={false} // Disabled shadow receiving for better performance
       scale={10}
       geometry={nodes.connector.geometry}
     >
@@ -206,7 +211,7 @@ function Model({ color = 'white', roughness = 0.2, metalness = 0.5, clearcoat = 
         clearcoatRoughness={0.1}
         metalness={metalness}
         roughness={roughness}
-        reflectivity={0.6}
+        reflectivity={0.3} // Reduced from 0.6 for less shine
       />
     </mesh>
   )

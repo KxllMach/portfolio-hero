@@ -26,28 +26,26 @@ export default function App() {
   // State to trigger impulse on click
   const [triggerImpulse, setTriggerImpulse] = useState(0);
   
-  // Dynamic quality detection for mobile
+  // Simple mobile detection
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   const isPortrait = window.innerHeight > window.innerWidth;
   
   // Force landscape canvas dimensions for better GPU performance
   const canvasStyle = useMemo(() => {
     if (isMobile && isPortrait) {
-      const canvasWidth = Math.max(window.innerWidth, window.innerHeight);
-      const canvasHeight = Math.min(window.innerWidth, window.innerHeight);
       return {
-        width: `${canvasWidth}px`,
-        height: `${canvasHeight}px`,
+        width: '100vh', // Use viewport height as width
+        height: '100vw', // Use viewport width as height  
         transform: 'rotate(90deg)',
         transformOrigin: 'center center',
-        position: 'absolute',
+        position: 'fixed',
         top: '50%',
         left: '50%',
-        marginTop: `-${canvasHeight / 2}px`,
-        marginLeft: `-${canvasWidth / 2}px`
+        marginTop: '-50vw', // Half of height
+        marginLeft: '-50vh', // Half of width
       };
     }
-    return {};
+    return { width: '100%', height: '100%' };
   }, [isMobile, isPortrait]);
   
   const connectors = useMemo(() => shuffle(accent), [accent])
@@ -59,7 +57,7 @@ export default function App() {
   }, []);
 
   return (
-    <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative' }}>
+    <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative', background: '#151615' }}>
       <Canvas
         onClick={handleCanvasClick}
         style={canvasStyle}
@@ -69,9 +67,6 @@ export default function App() {
           powerPreference: "high-performance",
           stencil: false,
           toneMapping: THREE.NoToneMapping,
-          alpha: false,
-          depth: true,
-          preserveDrawingBuffer: false,
         }}
         camera={{ position: [0, 0, 15], fov: 17.5, near: 1, far: 20 }}
       >
@@ -97,7 +92,7 @@ export default function App() {
         {connectors.map((props, i) => <Connector key={i} triggerImpulse={triggerImpulse} {...props} />)}
       </Physics>
 
-      {/* Simplified post-processing */}
+      {/* Post-processing back to normal since the landscape trick is working */}
       <EffectComposer 
         disableNormalPass 
         multisampling={isMobile ? 0 : 1}

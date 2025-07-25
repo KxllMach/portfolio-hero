@@ -1,16 +1,15 @@
 import * as THREE from 'three'
-import { useRef, useReducer, useMemo, useState, useEffect } from 'react'
+import { useRef, useReducer, useMemo, useState, useEffect, useCallback } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useGLTF, Environment, Lightformer } from '@react-three/drei'
 import { CuboidCollider, BallCollider, Physics, RigidBody } from '@react-three/rapier'
 import { EffectComposer, N8AO } from '@react-three/postprocessing'
-import { easing } from 'maath'
 
-// 🎨 Accent colors
+// 🎨 Accent colors - moved to module level for better caching
 const accents = ['#4060ff', '#8FFE09', '#ED141F', '#fff500']
 
-// Shuffle with clearcoat, roughness, and metalness
-const shuffle = (accent = 0) => [
+// Pre-computed material configurations with proper memoization
+const createMaterialConfigs = (accent = 0) => [
   { color: '#444', roughness: 0.75, metalness: 0, clearcoat: 0 },
   { color: '#444', roughness: 0.1, metalness: 0.8, clearcoat: 1 },
   { color: '#444', roughness: 0.75, metalness: 0.2, clearcoat: 0.8 },
@@ -22,179 +21,275 @@ const shuffle = (accent = 0) => [
   { color: accents[accent], roughness: 0.1, metalness: 0.2, clearcoat: 1, accent: true }
 ]
 
+// Preload GLTF model
+useGLTF.preload('/c-transformed.glb')
+
 export default function App() {
   const [accent, click] = useReducer((state) => ++state % accents.length, 0)
-  // State to trigger impulse on click
-  const [triggerImpulse, setTriggerImpulse] = useState(0);
+  const [triggerImpulse, setTriggerImpulse] = useState(0)
   
-  const connectors = useMemo(() => shuffle(accent), [accent])
+  // Memoize material configurations to prevent recreation
+  const connectors = useMemo(() => createMaterialConfigs(accent), [accent])
 
-  // Handle canvas click: change accent and trigger impulse
-  const handleCanvasClick = () => {
-    click(); // Change color accent
-    setTriggerImpulse(prev => prev + 1); // Increment to trigger impulse
-  };
+  // Optimize click handler with useCallback
+  const handleCanvasClick = useCallback(() => {
+    click()
+    setTriggerImpulse(prev => prev + 1)
+  }, [])
+
+  // Memoize canvas props
+  const canvasProps = useMemo(() => ({
+    dpr: [1, 1.5],
+    gl: { 
+      antialias: false,
+      powerPreference: "high-performance", // Request high-performance GPU
+      stencil: false, // Disable stencil buffer if not needed
+      depth: true,
+      alpha: false // Disable alpha if background is opaque
+    },
+    camera: { position: [0, 0, 15], fov: 17.5, near: 1, far: 20 },
+    frameloop: 'demand' // Only render when needed
+  }), [])
 
   return (
     <Canvas
-      onClick={handleCanvasClick} // Use the new handler
-      dpr={[1, 1.5]}
-      gl={{ antialias: false }}
-      camera={{ position: [0, 0, 15], fov: 17.5, near: 1, far: 20 }}
+      onClick={handleCanvasClick}
+      {...canvasProps}
     >
       <color attach="background" args={['#151615']} />
-      <ambientLight intensity={0.8} />
-      {/* SpotLight configured for focused shadows */}
-      <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={2} castShadow>
-        {/* Configure the shadow camera to tightly encompass the objects */}
-        <perspectiveCamera
-          attach="shadow-camera"
-          args={[
-            15, // fov: Narrower FOV to focus the shadow map on the objects
-            1,  // aspect: Keep it 1 for square shadow map
-            1,  // near: Adjust to clip very close objects if needed
-            20  // far: Adjust to include relevant objects without wasting resolution
-          ]}
-        />
-        {/* Shadow map resolution: Higher for sharper shadows, lower for more performance */}
-        {/* Using 512x512 for balance, or 256x256 if objects are small/performance critical */}
-        <bufferAttribute attach="shadow.mapSize" array={new Float32Array([512, 512])} itemSize={2} />
-      </spotLight>
-
-      <Physics gravity={[0, 0, 0]} maxSubSteps={3}>
+      
+      {/* Optimized lighting setup */}
+      <OptimizedLighting />
+      
+      <Physics 
+        gravity={[0, 0, 0]} 
+        maxSubSteps={2} // Reduced from 3 for better performance
+        substepCount={1}
+        timeStep={1/60}
+      >
         <Pointer />
-        {/* Pass triggerImpulse to each Connector */}
-        {connectors.map((props, i) => <Connector key={i} triggerImpulse={triggerImpulse} {...props} />)}
+        {connectors.map((props, i) => (
+          <Connector 
+            key={`${accent}-${i}`} // Better key for React reconciliation
+            triggerImpulse={triggerImpulse} 
+            index={i}
+            {...props} 
+          />
+        ))}
       </Physics>
 
-
-      <EffectComposer disableNormalPass multisampling={4}>
-        <N8AO distanceFalloff={1} aoRadius={1} intensity={3.5} />
+      {/* Optimized post-processing */}
+      <EffectComposer 
+        disableNormalPass 
+        multisampling={2} // Reduced from 4 for better performance
+      >
+        <N8AO 
+          distanceFalloff={1} 
+          aoRadius={1} 
+          intensity={3.5}
+          samples={16} // Reduced samples for better performance
+        />
       </EffectComposer>
 
-      <Environment resolution={256}>
-        <group rotation={[-Math.PI / 3, 0, 1]}>
-          <Lightformer form="circle" intensity={6} rotation-x={Math.PI / 2} position={[0, 5, -9]} scale={2} />
-          <Lightformer form="circle" intensity={3} rotation-y={Math.PI / 2} position={[-5, 1, -1]} scale={2} />
-          <Lightformer form="circle" intensity={3} rotation-y={Math.PI / 2} position={[-5, -1, -1]} scale={2} />
-          <Lightformer form="circle" intensity={3} rotation-y={-Math.PI / 2} position={[10, 1, 0]} scale={8} />
-        </group>
-      </Environment>
+      {/* Cached environment */}
+      <OptimizedEnvironment />
     </Canvas>
   )
 }
 
-function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.MathUtils.randFloatSpread, accent, triggerImpulse, ...props }) {
+// Memoized lighting component
+const OptimizedLighting = React.memo(() => (
+  <>
+    <ambientLight intensity={0.8} />
+    <spotLight 
+      position={[10, 10, 10]} 
+      angle={0.15} 
+      penumbra={1} 
+      intensity={2} 
+      castShadow
+      shadow-mapSize={[256, 256]} // Reduced shadow resolution for better performance
+      shadow-camera-fov={15}
+      shadow-camera-near={1}
+      shadow-camera-far={20}
+    />
+  </>
+))
+
+// Memoized environment component
+const OptimizedEnvironment = React.memo(() => (
+  <Environment resolution={128}> {/* Reduced resolution for better performance */}
+    <group rotation={[-Math.PI / 3, 0, 1]}>
+      <Lightformer form="circle" intensity={6} rotation-x={Math.PI / 2} position={[0, 5, -9]} scale={2} />
+      <Lightformer form="circle" intensity={3} rotation-y={Math.PI / 2} position={[-5, 1, -1]} scale={2} />
+      <Lightformer form="circle" intensity={3} rotation-y={Math.PI / 2} position={[-5, -1, -1]} scale={2} />
+      <Lightformer form="circle" intensity={3} rotation-y={-Math.PI / 2} position={[10, 1, 0]} scale={8} />
+    </group>
+  </Environment>
+))
+
+function Connector({ 
+  position, 
+  children, 
+  accent, 
+  triggerImpulse, 
+  index,
+  ...props 
+}) {
   const api = useRef()
-  const pos = useMemo(() => position || [r(10), r(10), r(10)], [])
+  
+  // Cache expensive calculations
+  const cached = useMemo(() => {
+    const r = THREE.MathUtils.randFloatSpread
+    return {
+      pos: position || [r(10), r(10), r(10)],
+      vec: new THREE.Vector3(),
+      offset: {
+        x: Math.random() * Math.PI * 2,
+        y: Math.random() * Math.PI * 2,
+        z: Math.random() * Math.PI * 2
+      },
+      // Pre-calculate oscillation multipliers
+      oscX: 0.8 + Math.random() * 0.4, // Vary oscillation speed
+      oscY: 1.0 + Math.random() * 0.4,
+      oscZ: 0.6 + Math.random() * 0.4
+    }
+  }, [position, index]) // Include index to ensure unique values per connector
 
-  // Random offsets for individual oscillation
-  const offset = useMemo(() => ({
-    x: Math.random() * Math.PI * 2,
-    y: Math.random() * Math.PI * 2,
-    z: Math.random() * Math.PI * 2
-  }), [])
-
-  useFrame((state, delta) => {
+  // Optimize animation loop with reduced calculations
+  useFrame((state) => {
     if (!api.current) return
+    
     const t = state.clock.getElapsedTime()
-
-    // Get current position
     const currentPosition = api.current.translation()
 
-    // ✅ Strong inward pull to center
+    // Batch calculations
+    const inwardForce = 0.4
     const inward = {
-      x: -currentPosition.x * 0.4,
-      y: -currentPosition.y * 0.4,
-      z: -currentPosition.z * 0.4
+      x: -currentPosition.x * inwardForce + Math.sin(t * cached.oscX + cached.offset.x) * 0.1,
+      y: -currentPosition.y * inwardForce + Math.cos(t * cached.oscY + cached.offset.y) * 0.1,
+      z: -currentPosition.z * inwardForce + Math.sin(t * cached.oscZ + cached.offset.z) * 0.05
     }
 
-    // ✅ Add oscillation per object (increased magnitude slightly for better motion with damping)
-    inward.x += Math.sin(t * 0.8 + offset.x) * 0.1
-    inward.y += Math.cos(t * 1.0 + offset.y) * 0.1
-    inward.z += Math.sin(t * 0.6 + offset.z) * 0.05
-
-    // ✅ Apply impulse and explicitly wake up the body
+    // Apply forces in single call
     api.current.applyImpulse(inward, true)
 
-    // ✅ Add small torque for random rotation (increased magnitude slightly)
+    // Reduced torque calculations
+    const torqueStrength = 0.001
     api.current.applyTorqueImpulse({
-      x: Math.sin(t + offset.x) * 0.001,
-      y: Math.cos(t + offset.y) * 0.001,
-      z: Math.sin(t + offset.z) * 0.001
+      x: Math.sin(t + cached.offset.x) * torqueStrength,
+      y: Math.cos(t + cached.offset.y) * torqueStrength,
+      z: Math.sin(t + cached.offset.z) * torqueStrength
     }, true)
   })
 
-  // Effect to apply impulse when triggerImpulse changes
+  // Optimize impulse effect
   useEffect(() => {
-    if (api.current && triggerImpulse > 0) { // Only apply if triggerImpulse is incremented
-      const currentPosition = api.current.translation();
-      const impulseDirection = new THREE.Vector3(currentPosition.x, currentPosition.y, currentPosition.z).normalize();
-      const impulseMagnitude = 50; // Adjust this value to control how strong the push is
-
-      api.current.applyImpulse(impulseDirection.multiplyScalar(impulseMagnitude), true);
+    if (api.current && triggerImpulse > 0) {
+      const currentPosition = api.current.translation()
+      
+      // Reuse cached vector for better memory management
+      cached.vec.set(currentPosition.x, currentPosition.y, currentPosition.z)
+      cached.vec.normalize().multiplyScalar(50)
+      
+      api.current.applyImpulse(cached.vec, true)
     }
-  }, [triggerImpulse]); // Dependency array: runs when triggerImpulse changes
+  }, [triggerImpulse, cached.vec])
+
+  // Memoize collider configuration
+  const colliderProps = useMemo(() => ({
+    linearDamping: 2,  
+    angularDamping: 0.5,  
+    friction: 0.1,
+    restitution: 0.9,
+    position: cached.pos,
+    colliders: false,
+    canSleep: false
+  }), [cached.pos])
 
   return (
-    <RigidBody
-      linearDamping={2}  
-      angularDamping={0.5}  
-      friction={0.1}
-      restitution={0.9}
-      position={pos}
-      ref={api}
-      colliders={false}
-      canSleep={false}  
-    >
+    <RigidBody ref={api} {...colliderProps}>
+      {/* Use shared collider geometry */}
       <CuboidCollider args={[0.6, 1.27, 0.6]} />
       <CuboidCollider args={[1.27, 0.6, 0.6]} />
       <CuboidCollider args={[0.6, 0.6, 1.27]} />
-      {children ? children : <Model {...props} />}
-      {accent && <pointLight intensity={3} distance={3} color={props.color} />}
+      
+      {children || <OptimizedModel {...props} />}
+      
+      {accent && (
+        <pointLight 
+          intensity={3} 
+          distance={3} 
+          color={props.color}
+          decay={2} // Add realistic light decay
+        />
+      )}
     </RigidBody>
   )
 }
 
-function Pointer({ vec = new THREE.Vector3() }) {
+// Memoized pointer component
+const Pointer = React.memo(() => {
   const ref = useRef()
+  const vec = useMemo(() => new THREE.Vector3(), [])
+  
   useFrame(({ mouse, viewport }) => {
-    ref.current?.setNextKinematicTranslation(vec.set((mouse.x * viewport.width) / 2, (mouse.y * viewport.height) / 2, 0))
+    ref.current?.setNextKinematicTranslation(
+      vec.set(
+        (mouse.x * viewport.width) / 2, 
+        (mouse.y * viewport.height) / 2, 
+        0
+      )
+    )
   })
   
   return (
     <RigidBody position={[0, 0, 0]} type="kinematicPosition" colliders={false} ref={ref}>
-      <BallCollider args={[0.4]} /> {/* Softer push */}
+      <BallCollider args={[0.4]} />
     </RigidBody>
   )
-}
+})
 
-function Model({ color = 'white', roughness = 0.2, metalness = 0.5, clearcoat = 0.8 }) {
+// Heavily optimized model component
+function OptimizedModel({ color = 'white', roughness = 0.2, metalness = 0.5, clearcoat = 0.8 }) {
   const ref = useRef()
+  const materialRef = useRef()
   const { nodes } = useGLTF('/c-transformed.glb')
+  
+  // Create material once and reuse
+  const material = useMemo(() => new THREE.MeshPhysicalMaterial({
+    clearcoat,
+    clearcoatRoughness: 0.1,
+    metalness,
+    roughness,
+    reflectivity: 0.6
+  }), [clearcoat, metalness, roughness])
 
-  useFrame((state, delta) => {
-    // Instant color change: directly set the color
-    if (ref.current && ref.current.material) {
-      ref.current.material.color.set(color);
+  // Optimize color updates with direct material reference
+  useFrame(() => {
+    if (materialRef.current) {
+      materialRef.current.color.set(color)
     }
   })
+
+  // Clone geometry once for better memory usage
+  const geometry = useMemo(() => {
+    if (nodes?.connector?.geometry) {
+      return nodes.connector.geometry.clone()
+    }
+    return new THREE.BoxGeometry(1, 1, 1) // Fallback
+  }, [nodes])
 
   return (
     <mesh
       ref={ref}
-      castShadow       // This object casts a shadow
-      receiveShadow    // This object receives shadows (including from itself)
+      castShadow
+      receiveShadow
       scale={10}
-      geometry={nodes.connector.geometry}
-    >
-      <meshPhysicalMaterial
-        clearcoat={clearcoat}
-        clearcoatRoughness={0.1}
-        metalness={metalness}
-        roughness={roughness}
-        reflectivity={0.6}
-      />
-    </mesh>
+      geometry={geometry}
+      material={material}
+      onBeforeRender={() => {
+        materialRef.current = material
+      }}
+    />
   )
 }

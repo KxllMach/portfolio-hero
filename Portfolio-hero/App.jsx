@@ -1,84 +1,50 @@
 import * as THREE from 'three'
 import { useRef, useReducer, useMemo, useState, useEffect, useCallback, Suspense } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { useGLTF, Environment, Lightformer, Text } from '@react-three/drei' // Added Text for fallback
-import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader' // Added DRACOLoader import
-
-// Keeping other imports for completeness, though not used in this debug version
-import { CuboidCollider, BallCollider, Physics, RigidBody } from '@react-three/rapier'
+import { useGLTF, Environment, Lightformer, Text } from '@react-three/drei' // Text for Suspense fallback
+import { CuboidCollider, BallCollider, Physics, RigidBody } from '@react-three/rapier' // Debug removed for Vercel build
 import { EffectComposer, N8AO } from '@react-three/postprocessing'
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader' // DRACOLoader import
 import { easing } from 'maath'
 
-// --- NEW TEST MODEL COMPONENT (for focused GLTF debugging) ---
-function TestModel() {
-  // Load the GLTF model
-  const { scene, nodes, materials } = useGLTF('/c-transformed.glb', (loader) => {
-    const dracoLoader = new DRACOLoader();
-    dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
-    loader.setDRACOLoader(dracoLoader);
-  });
+// 🎨 Accent colors
+const accents = ['#4060ff', '#8FFE09', '#ED141F', '#fff500']
 
-  // This useEffect will fire when useGLTF returns its values (scene, nodes, materials)
-  useEffect(() => {
-    console.log("--- TestModel GLTF Load Status ---");
-    console.log("Full GLTF Object (from useGLTF):", { scene, nodes, materials }); // Log all outputs
-
-    if (scene) {
-      console.log("GLTF Scene object is available.");
-      console.log("Scene children:", scene.children); // Check what's directly under the scene
-
-      let meshFound = false;
-      scene.traverse((obj) => {
-        if (obj.isMesh) {
-          meshFound = true;
-          console.log("Found mesh during scene traverse:", obj.name || "Unnamed Mesh", obj.geometry, obj.material);
-          // Apply a basic material if the model has none or its material is problematic
-          if (!obj.material) {
-            obj.material = new THREE.MeshStandardMaterial({ color: 'hotpink' });
-            console.log("Applied default hotpink material to mesh:", obj.name || "Unnamed Mesh");
-          }
-          // Ensure shadows are set for debugging visibility
-          obj.castShadow = true;
-          obj.receiveShadow = true;
-        }
-      });
-      if (!meshFound) {
-        console.log("No meshes found in the loaded scene during traverse.");
-      }
-    } else {
-      console.log("GLTF Scene object is null/undefined. Model might not be parsing correctly.");
-    }
-    console.log("----------------------------------");
-  }, [scene, nodes, materials]); // Depend on all outputs of useGLTF
-
-  // Render the entire scene if it's loaded
-  if (scene) {
-    return <primitive object={scene} scale={0.5} position={[0, 0, 0]} />; // Render at origin, scale 0.5
-  }
-  // If scene is not loaded yet, Suspense fallback will handle it.
-  return null;
-}
-// --- END NEW TEST MODEL COMPONENT ---
-
+// Shuffle with clearcoat, roughness, and metalness
+const shuffle = (accent = 0) => [
+  { color: '#444', roughness: 0.75, metalness: 0, clearcoat: 0 },
+  { color: '#444', roughness: 0.1, metalness: 0.8, clearcoat: 1 },
+  { color: '#444', roughness: 0.75, metalness: 0.2, clearcoat: 0.8 },
+  { color: 'white', roughness: 0.75, metalness: 0, clearcoat: 0.1},
+  { color: 'white', roughness: 0.75, metalness: 0, clearcoat: 1 },
+  { color: 'white', roughness: 0.1, metalness: 0.2, clearcoat: 1 },
+  { color: accents[accent], roughness: 0.75, metalness: 0.2, clearcoat: 0.1, accent: true },
+  { color: accents[accent], roughness: 0.1, metalness: 0.5, clearcoat: 1, accent: true },
+  { color: accents[accent], roughness: 0.1, metalness: 0.2, clearcoat: 1, accent: true }
+]
 
 export default function App() {
-  // All states and handlers related to connectors/physics are removed for this debug version
-  // const [accent, click] = useReducer((state) => ++state % accents.length, 0)
-  // const [triggerImpulse, setTriggerImpulse] = useState(0);
-  // const connectors = useMemo(() => shuffle(accent), [accent])
-  // const handleCanvasClick = useCallback(() => { ... }, []);
+  const [accent, click] = useReducer((state) => ++state % accents.length, 0)
+  const [triggerImpulse, setTriggerImpulse] = useState(0);
+  
+  const connectors = useMemo(() => shuffle(accent), [accent])
+
+  const handleCanvasClick = useCallback(() => {
+    click();
+    setTriggerImpulse(prev => prev + 1);
+  }, []);
 
   return (
     <Canvas
-      // onClick={handleCanvasClick} // Temporarily disabled click handler
+      onClick={handleCanvasClick}
       dpr={[1, 1.5]}
       gl={{ 
         antialias: false,
         powerPreference: "high-performance",
         stencil: false,
       }}
-      // Adjusted camera position and FOV for a single, scaled object
-      camera={{ position: [0, 0, 10], fov: 40, near: 0.1, far: 50 }} 
+      // Adjusted camera position and FOV for multiple objects at scale 0.5
+      camera={{ position: [0, 0, 15], fov: 30, near: 0.1, far: 50 }} 
     >
       <color attach="background" args={['#151615']} />
       <ambientLight intensity={0.8} />
@@ -89,17 +55,18 @@ export default function App() {
         shadow-camera-far={20}
       />
 
-      {/* Suspense with a visible fallback so you know if it's loading */}
-      <Suspense fallback={<Text color="white" anchorX="center" anchorY="middle">Loading 3D Model...</Text>}>
-        {/* RENDER ONLY THE TEST MODEL HERE */}
-        <TestModel /> 
+      {/* Suspense to handle GLTF loading */}
+      <Suspense fallback={<Text color="white" anchorX="center" anchorY="middle">Loading 3D Models...</Text>}>
+        <Physics 
+          gravity={[0, 0, 0]} 
+          maxSubSteps={2}
+          timeStep={1/60}
+        >
+          {/* <Debug /> */} {/* Keep commented out for Vercel build */}
+          <Pointer /> {/* Re-enabled Pointer */}
+          {connectors.map((props, i) => <Connector key={i} triggerImpulse={triggerImpulse} {...props} />)}
+        </Physics>
       </Suspense>
-
-      {/* Temporarily removed all other components to isolate the GLTF loading issue */}
-      {/* <Physics gravity={[0, 0, 0]} maxSubSteps={2} timeStep={1/60}>
-        <Pointer />
-        {connectors.map((props, i) => <Connector key={i} triggerImpulse={triggerImpulse} {...props} />)}
-      </Physics>
 
       <EffectComposer 
         disableNormalPass 
@@ -120,18 +87,15 @@ export default function App() {
           <Lightformer form="circle" intensity={3} rotation-y={Math.PI / 2} position={[-5, -1, -1]} scale={2} />
           <Lightformer form="circle" intensity={3} rotation-y={-Math.PI / 2} position={[10, 1, 0]} scale={8} />
         </group>
-      </Environment> */}
+      </Environment>
     </Canvas>
   )
 }
 
-// Keeping Connector, Pointer, and Model components below for reference,
-// but they are NOT rendered in App for this specific debug test.
-// You will re-integrate them once TestModel confirms GLTF loading.
-
 function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.MathUtils.randFloatSpread, accent, triggerImpulse, ...props }) {
   const api = useRef()
-  const pos = useMemo(() => position || [r(3), r(3), r(3)], [position])
+  // Reduced initial spread for objects to spawn closer to the center, matching smaller scale
+  const pos = useMemo(() => position || [r(5), r(5), r(5)], [position]) // r(5) for a tighter cluster
 
   const offset = useMemo(() => ({
     x: Math.random() * Math.PI * 2,
@@ -172,7 +136,8 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
     if (api.current && triggerImpulse > 0) {
       const currentPosition = api.current.translation();
       const impulseDirection = new THREE.Vector3(currentPosition.x, currentPosition.y, currentPosition.z).normalize();
-      const impulseMagnitude = 0;
+      // Adjusted impulse magnitude for smaller objects
+      const impulseMagnitude = 10; // Re-enabled and set to 10 for a noticeable push
 
       api.current.applyImpulse(impulseDirection.multiplyScalar(impulseMagnitude), true);
       console.log(`Applied impulse to connector at ${currentPosition.x.toFixed(2)}, ${currentPosition.y.toFixed(2)}, ${currentPosition.z.toFixed(2)}`);
@@ -190,6 +155,7 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
       colliders={false}
       canSleep={false}  
     >
+      {/* CuboidCollider args are now correct for Model scale={0.5} */}
       <CuboidCollider args={[0.6, 1.27, 0.6]} />
       <CuboidCollider args={[1.27, 0.6, 0.6]} />
       <CuboidCollider args={[0.6, 0.6, 1.27]} />
@@ -208,44 +174,81 @@ function Pointer({ vec = new THREE.Vector3() }) {
   
   return (
     <RigidBody position={[0, 0, 0]} type="kinematicPosition" colliders={false} ref={ref}>
-      <BallCollider args={[0.4]} />
+      {/* Adjusted BallCollider args for smaller objects */}
+      <BallCollider args={[0.04]} /> 
     </RigidBody>
   )
 }
 
 function Model({ color = 'white', roughness = 0.2, metalness = 0.5, clearcoat = 0.8 }) {
   const ref = useRef()
-  const { nodes } = useGLTF('/c-transformed.glb', (loader) => {
+  // Load the GLTF model (scene, nodes, materials are all available)
+  const { scene } = useGLTF('/c-transformed.glb', (loader) => {
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
     loader.setDRACOLoader(dracoLoader);
   });
 
-  useEffect(() => {
-    if (nodes.connector) {
-      console.log("GLTF 'connector' node loaded:", nodes.connector);
-      console.log("Available node names:", Object.keys(nodes));
-      
-      nodes.connector.castShadow = true;
-      nodes.connector.receiveShadow = true;
+  // Use a ref to hold the material properties for the loaded model
+  const materialPropsRef = useRef({ color, roughness, metalness, clearcoat });
 
-      if (nodes.connector.isMesh && nodes.connector.material) {
-        nodes.connector.material.roughness = roughness;
-        nodes.connector.material.metalness = metalness;
-        nodes.connector.material.clearcoat = clearcoat;
-      }
+  // Update ref when props change
+  useEffect(() => {
+    materialPropsRef.current = { color, roughness, metalness, clearcoat };
+  }, [color, roughness, metalness, clearcoat]);
+
+  // This useEffect will fire when the GLTF scene object becomes available
+  useEffect(() => {
+    if (scene) {
+      console.log("GLTF Scene loaded successfully:", scene); // Log the entire scene object
+      console.log("Available scene children:", scene.children); // Log children to see what's inside
+
+      // Traverse the entire scene to apply properties to all meshes
+      scene.traverse((obj) => {
+        if (obj.isMesh) {
+          obj.castShadow = true;
+          obj.receiveShadow = true;
+
+          // Apply initial material properties or create new material if none
+          if (obj.material) {
+            obj.material.color.set(materialPropsRef.current.color);
+            obj.material.roughness = materialPropsRef.current.roughness;
+            obj.material.metalness = materialPropsRef.current.metalness;
+            obj.material.clearcoat = materialPropsRef.current.clearcoat;
+            obj.material.needsUpdate = true; // Important to update material
+          } else {
+            // If mesh has no material, create a new MeshPhysicalMaterial
+            obj.material = new THREE.MeshPhysicalMaterial({
+              color: materialPropsRef.current.color,
+              roughness: materialPropsRef.current.roughness,
+              metalness: materialPropsRef.current.metalness,
+              clearcoat: materialPropsRef.current.clearcoat,
+              clearcoatRoughness: 0.1,
+              reflectivity: 0.6
+            });
+            obj.material.needsUpdate = true;
+          }
+        }
+      });
     } else {
-      console.log("GLTF 'connector' node not found or model not fully loaded.");
+      console.log("GLTF Scene is null/undefined. Model might not be parsing correctly.");
     }
-  }, [nodes.connector, roughness, metalness, clearcoat]);
+  }, [scene]); // Dependency on 'scene' to trigger when it's ready
 
   useFrame((state, delta) => {
-    if (nodes.connector && nodes.connector.isMesh && nodes.connector.material) {
-      nodes.connector.material.color.set(color);
+    // Update color dynamically in useFrame
+    if (scene) {
+      scene.traverse((obj) => {
+        if (obj.isMesh && obj.material) {
+          obj.material.color.set(materialPropsRef.current.color);
+        }
+      });
     }
   })
 
   return (
-    <primitive object={nodes.connector} scale={0.5} /> 
+    // Render the entire loaded scene
+    // The ref 'ref' is not directly used on primitive, but can be used for material access if needed.
+    <primitive object={scene} scale={0.5} /> 
   )
 }

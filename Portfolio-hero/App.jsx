@@ -4,6 +4,65 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import { useGLTF, Environment, Lightformer } from '@react-three/drei'
 import { CuboidCollider, BallCollider, Physics, RigidBody } from '@react-three/rapier'
 
+// Custom hook for gyroscope data
+function useGyroscope() {
+  const [orientation, setOrientation] = useState({ beta: 0, gamma: 0, alpha: 0 })
+  const [permission, setPermission] = useState('unknown')
+  const [isSupported, setIsSupported] = useState(false)
+
+  useEffect(() => {
+    // Check if device orientation is supported
+    if (typeof DeviceOrientationEvent !== 'undefined') {
+      setIsSupported(true)
+      
+      // Check if permission is required (iOS 13+)
+      if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+        setPermission('required')
+      } else {
+        setPermission('granted')
+        startListening()
+      }
+    }
+
+    function startListening() {
+      const handleOrientation = (event) => {
+        setOrientation({
+          beta: event.beta || 0,   // front-to-back tilt (-180 to 180)
+          gamma: event.gamma || 0, // left-to-right tilt (-90 to 90)
+          alpha: event.alpha || 0  // compass direction (0 to 360)
+        })
+      }
+
+      window.addEventListener('deviceorientation', handleOrientation, true)
+      
+      return () => {
+        window.removeEventListener('deviceorientation', handleOrientation, true)
+      }
+    }
+
+    if (permission === 'granted') {
+      return startListening()
+    }
+  }, [permission])
+
+  const requestPermission = async () => {
+    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+      try {
+        const response = await DeviceOrientationEvent.requestPermission()
+        setPermission(response)
+        if (response === 'granted') {
+          // Permission granted, listening will start automatically
+        }
+      } catch (error) {
+        console.error('Error requesting device orientation permission:', error)
+        setPermission('denied')
+      }
+    }
+  }
+
+  return { orientation, permission, isSupported, requestPermission }
+}
+
 // 🎨 Accent colors
 const accents = ['#4060ff', '#8FFE09', '#ED141F', '#fff500']
 
@@ -84,7 +143,7 @@ export default function App() {
   )
 }
 
-function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.MathUtils.randFloatSpread, accent, triggerImpulse, ...props }) {
+function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.MathUtils.randFloatSpread, accent, triggerImpulse, orientation, isSupported, permission, ...props }) {
   const api = useRef()
   const pos = useMemo(() => position || [r(10), r(10), r(10)], [position])
 
@@ -114,23 +173,53 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
     const t = state.clock.getElapsedTime()
     const currentPosition = api.current.translation()
 
-    // Restored original physics for natural movement
+    // Base physics forces
     const forceMultiplier = 0.4
-    const inward = {
+    let inward = {
       x: -currentPosition.x * forceMultiplier + Math.sin(t * oscSpeeds.x + offset.x) * 0.1,
       y: -currentPosition.y * forceMultiplier + Math.cos(t * oscSpeeds.y + offset.y) * 0.1,
       z: -currentPosition.z * forceMultiplier + Math.sin(t * oscSpeeds.z + offset.z) * 0.05
+    }
+
+    // Add gyroscope forces if available and permission granted
+    if (isSupported && permission === 'granted') {
+      // Convert orientation to forces
+      // beta: front-to-back tilt (-180 to 180) -> affects Y axis
+      // gamma: left-to-right tilt (-90 to 90) -> affects X axis
+      const gyroStrength = 0.8
+      
+      // Normalize and apply gyroscope data
+      const tiltX = (orientation.gamma / 90) * gyroStrength  // -1 to 1
+      const tiltY = (orientation.beta / 180) * gyroStrength  // -1 to 1
+      
+      // Apply gyroscope forces (inverted for natural feel)
+      inward.x += -tiltX * 2
+      inward.y += tiltY * 2
+      
+      // Add subtle rotation based on compass direction
+      const compassForce = Math.sin((orientation.alpha || 0) * Math.PI / 180) * 0.1
+      inward.z += compassForce
     }
 
     api.current.applyImpulse(inward, true)
 
     // Restored torque for natural rotation
     const torqueStrength = 0.001
-    api.current.applyTorqueImpulse({
+    let torque = {
       x: Math.sin(t + offset.x) * torqueStrength,
       y: Math.cos(t + offset.y) * torqueStrength,
       z: Math.sin(t + offset.z) * torqueStrength
-    }, true)
+    }
+
+    // Add gyroscope-based rotation
+    if (isSupported && permission === 'granted') {
+      const rotationStrength = 0.0002
+      torque.x += (orientation.gamma / 90) * rotationStrength
+      torque.y += (orientation.beta / 180) * rotationStrength
+      torque.z += Math.sin((orientation.alpha || 0) * Math.PI / 180) * rotationStrength
+    }
+
+    api.current.applyTorqueImpulse(torque, true)
   })
 
   useEffect(() => {
@@ -166,14 +255,30 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
   )
 }
 
-function Pointer({ vec = new THREE.Vector3() }) {
+function Pointer({ vec = new THREE.Vector3(), orientation, isSupported, permission }) {
   const ref = useRef()
   
   // AUTO-START: Always update pointer for immediate interaction
   useFrame(({ mouse, viewport }) => {
-    ref.current?.setNextKinematicTranslation(
-      vec.set((mouse.x * viewport.width) / 2, (mouse.y * viewport.height) / 2, 0)
-    )
+    if (!ref.current) return
+    
+    let x = (mouse.x * viewport.width) / 2
+    let y = (mouse.y * viewport.height) / 2
+    let z = 0
+
+    // Add gyroscope-based pointer movement
+    if (isSupported && permission === 'granted') {
+      // Use gyroscope to influence pointer position
+      const gyroInfluence = 3
+      x += (orientation.gamma / 90) * gyroInfluence  // Left-right tilt affects X
+      y += (orientation.beta / 180) * gyroInfluence  // Front-back tilt affects Y
+      
+      // Add depth movement based on total tilt
+      const totalTilt = Math.abs(orientation.gamma) + Math.abs(orientation.beta)
+      z = (totalTilt / 100) * 2 // Move pointer forward/back based on tilt intensity
+    }
+
+    ref.current.setNextKinematicTranslation(vec.set(x, y, z))
   })
   
   return (

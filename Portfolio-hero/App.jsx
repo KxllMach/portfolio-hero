@@ -251,7 +251,7 @@ function CameraGyro({ orientation, isSupported, permission }) {
     const cam = state.camera
     
     // MUCH GENTLER camera movement
-    const cameraStrength = 0.02 // Reduced significantly
+    const cameraStrength = 0.2 // Reduced significantly
     const maxCameraTilt = 15 // degrees
     
     // Clamp camera movement

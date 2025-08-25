@@ -218,7 +218,7 @@ function Pointer({ vec = new THREE.Vector3(), orientation, isSupported, permissi
 
     // MUCH GENTLER pointer movement
     if (isSupported && permission === 'granted') {
-      const pointerGyroStrength = 1.5 // Reduced from 3
+      const pointerGyroStrength = 0.05 // Reduced from 3
       const maxTilt = 45 // degrees
       
       // Clamp and apply gyroscope to pointer position

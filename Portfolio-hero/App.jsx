@@ -155,7 +155,7 @@ function Connector({ position, r = THREE.MathUtils.randFloatSpread, orientation,
     // Gyroscope gravity influence
     if (isSupported && permission === 'granted') {
       const maxTilt = 30
-      const gyroStrength = 0.3
+      const gyroStrength = 0.4
       const normalizedGamma = Math.max(-1, Math.min(1, orientation.gamma / maxTilt))
       const normalizedBeta = Math.max(-1, Math.min(1, orientation.beta / maxTilt))
       inward.x += -normalizedGamma * gyroStrength
@@ -240,9 +240,9 @@ function CameraGyro({ orientation, isSupported, permission }) {
     const cam = state.camera
 
     // Reduced strength for much more subtle panning
-    const cameraStrength = 0.2
+    const cameraStrength = 0.3
     const maxCameraTilt = 20 // Reduced range for less travel
-    const lerpSpeed = 0.06 // Slightly slower for a smoother feel
+    const lerpSpeed = 0.1 // Slightly slower for a smoother feel
 
     // Clamp gyroscope values
     const clampedGamma = Math.max(-maxCameraTilt, Math.min(maxCameraTilt, gamma))

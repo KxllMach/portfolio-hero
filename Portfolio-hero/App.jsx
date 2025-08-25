@@ -9,58 +9,78 @@ function useGyroscope() {
   const [orientation, setOrientation] = useState({ beta: 0, gamma: 0, alpha: 0 })
   const [permission, setPermission] = useState('unknown')
   const [isSupported, setIsSupported] = useState(false)
+  const [isActive, setIsActive] = useState(false)
 
   useEffect(() => {
     // Check if device orientation is supported
-    if (typeof DeviceOrientationEvent !== 'undefined') {
+    if (typeof window !== 'undefined' && 'DeviceOrientationEvent' in window) {
       setIsSupported(true)
       
-      // Check if permission is required (iOS 13+)
+      // For iOS 13+ devices that require permission
       if (typeof DeviceOrientationEvent.requestPermission === 'function') {
         setPermission('required')
       } else {
+        // For Android and older iOS - start immediately
         setPermission('granted')
         startListening()
       }
+    } else {
+      setIsSupported(false)
+      setPermission('denied')
     }
 
     function startListening() {
       const handleOrientation = (event) => {
-        setOrientation({
-          beta: event.beta || 0,   // front-to-back tilt (-180 to 180)
-          gamma: event.gamma || 0, // left-to-right tilt (-90 to 90)
-          alpha: event.alpha || 0  // compass direction (0 to 360)
-        })
+        // Add null checks and defaults
+        const beta = event.beta !== null ? event.beta : 0
+        const gamma = event.gamma !== null ? event.gamma : 0  
+        const alpha = event.alpha !== null ? event.alpha : 0
+
+        setOrientation({ beta, gamma, alpha })
+        setIsActive(true)
+        
+        // Debug log (remove in production)
+        console.log('Gyro:', { beta: beta.toFixed(1), gamma: gamma.toFixed(1), alpha: alpha.toFixed(1) })
       }
 
-      window.addEventListener('deviceorientation', handleOrientation, true)
+      // Add event listener with passive option for better performance
+      window.addEventListener('deviceorientation', handleOrientation, { passive: true })
+      
+      // Timeout to check if we're getting data
+      const timeout = setTimeout(() => {
+        if (!isActive) {
+          console.log('No gyroscope data received after 3 seconds')
+        }
+      }, 3000)
       
       return () => {
-        window.removeEventListener('deviceorientation', handleOrientation, true)
+        window.removeEventListener('deviceorientation', handleOrientation)
+        clearTimeout(timeout)
       }
     }
 
     if (permission === 'granted') {
       return startListening()
     }
-  }, [permission])
+  }, [permission, isActive])
 
   const requestPermission = async () => {
     if (typeof DeviceOrientationEvent.requestPermission === 'function') {
       try {
         const response = await DeviceOrientationEvent.requestPermission()
+        console.log('Permission response:', response)
         setPermission(response)
-        if (response === 'granted') {
-          // Permission granted, listening will start automatically
-        }
       } catch (error) {
         console.error('Error requesting device orientation permission:', error)
         setPermission('denied')
       }
+    } else {
+      // For non-iOS devices, manually trigger
+      setPermission('granted')
     }
   }
 
-  return { orientation, permission, isSupported, requestPermission }
+  return { orientation, permission, isSupported, requestPermission, isActive }
 }
 
 // 🎨 Accent colors
@@ -182,23 +202,23 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
     }
 
     // Add gyroscope forces if available and permission granted
-    if (isSupported && permission === 'granted') {
-      // Convert orientation to forces
-      // beta: front-to-back tilt (-180 to 180) -> affects Y axis
-      // gamma: left-to-right tilt (-90 to 90) -> affects X axis
-      const gyroStrength = 0.8
+    if (isSupported && permission === 'granted' && (Math.abs(orientation.beta) > 1 || Math.abs(orientation.gamma) > 1)) {
+      // Convert orientation to forces with stronger multiplier
+      const gyroStrength = 1.5 // Increased from 0.8
       
       // Normalize and apply gyroscope data
-      const tiltX = (orientation.gamma / 90) * gyroStrength  // -1 to 1
-      const tiltY = (orientation.beta / 180) * gyroStrength  // -1 to 1
+      const tiltX = Math.max(-1, Math.min(1, orientation.gamma / 45)) * gyroStrength  // Use 45° as max instead of 90°
+      const tiltY = Math.max(-1, Math.min(1, orientation.beta / 45)) * gyroStrength   // Use 45° as max instead of 180°
       
       // Apply gyroscope forces (inverted for natural feel)
-      inward.x += -tiltX * 2
-      inward.y += tiltY * 2
+      inward.x += -tiltX * 3 // Increased from 2
+      inward.y += tiltY * 3  // Increased from 2
       
       // Add subtle rotation based on compass direction
-      const compassForce = Math.sin((orientation.alpha || 0) * Math.PI / 180) * 0.1
-      inward.z += compassForce
+      if (orientation.alpha && orientation.alpha > 0) {
+        const compassForce = Math.sin((orientation.alpha) * Math.PI / 180) * 0.2
+        inward.z += compassForce
+      }
     }
 
     api.current.applyImpulse(inward, true)
@@ -212,11 +232,13 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
     }
 
     // Add gyroscope-based rotation
-    if (isSupported && permission === 'granted') {
-      const rotationStrength = 0.0002
-      torque.x += (orientation.gamma / 90) * rotationStrength
-      torque.y += (orientation.beta / 180) * rotationStrength
-      torque.z += Math.sin((orientation.alpha || 0) * Math.PI / 180) * rotationStrength
+    if (isSupported && permission === 'granted' && (Math.abs(orientation.beta) > 1 || Math.abs(orientation.gamma) > 1)) {
+      const rotationStrength = 0.0005 // Increased from 0.0002
+      torque.x += (orientation.gamma / 45) * rotationStrength
+      torque.y += (orientation.beta / 45) * rotationStrength
+      if (orientation.alpha && orientation.alpha > 0) {
+        torque.z += Math.sin((orientation.alpha) * Math.PI / 180) * rotationStrength
+      }
     }
 
     api.current.applyTorqueImpulse(torque, true)

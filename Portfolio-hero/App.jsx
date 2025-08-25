@@ -3,118 +3,73 @@ import { useRef, useReducer, useMemo, useState, useEffect, useCallback } from 'r
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useGLTF, Environment, Lightformer } from '@react-three/drei'
 import { CuboidCollider, BallCollider, Physics, RigidBody } from '@react-three/rapier'
-import { EffectComposer, N8AO } from '@react-three/postprocessing'
 
 // 🎨 Accent colors
 const accents = ['#4060ff', '#8FFE09', '#ED141F', '#fff500']
 
 // Shuffle with clearcoat, roughness, and metalness
 const shuffle = (accent = 0) => [
-  { color: '#444', roughness: 0.75, metalness: 0, clearcoat: 0 },
-  { color: '#444', roughness: 0.1, metalness: 0.8, clearcoat: 1 },
-  { color: '#444', roughness: 0.75, metalness: 0.2, clearcoat: 0.8 },
-  { color: 'white', roughness: 0.75, metalness: 0, clearcoat: 0.1},
-  { color: 'white', roughness: 0.75, metalness: 0, clearcoat: 1 },
-  { color: 'white', roughness: 0.1, metalness: 0.2, clearcoat: 1 },
-  { color: accents[accent], roughness: 0.75, metalness: 0.2, clearcoat: 0.1, accent: true },
-  { color: accents[accent], roughness: 0.1, metalness: 0.5, clearcoat: 1, accent: true },
-  { color: accents[accent], roughness: 0.1, metalness: 0.2, clearcoat: 1, accent: true }
+  { color: '#444', roughness: 0.75, metalness: 0 },
+  { color: '#444', roughness: 0.1, metalness: 0.8 },
+  { color: '#444', roughness: 0.75, metalness: 0.2 },
+  { color: 'white', roughness: 0.75, metalness: 0 },
+  { color: 'white', roughness: 0.75, metalness: 0 },
+  { color: 'white', roughness: 0.1, metalness: 0.2 },
+  { color: accents[accent], roughness: 0.75, metalness: 0.2, accent: true },
+  { color: accents[accent], roughness: 0.1, metalness: 0.5, accent: true },
+  { color: accents[accent], roughness: 0.1, metalness: 0.2, accent: true }
 ]
 
 export default function App() {
   const [accent, click] = useReducer((state) => ++state % accents.length, 0)
-  // State to trigger impulse on click
   const [triggerImpulse, setTriggerImpulse] = useState(0);
-  
-  // Simple mobile detection
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  const isPortrait = window.innerHeight > window.innerWidth;
-  
-  // Force landscape canvas dimensions for better GPU performance
-  const canvasStyle = useMemo(() => {
-    if (isMobile && isPortrait) {
-      return {
-        width: '100vh', // Use viewport height as width
-        height: '100vw', // Use viewport width as height  
-        transform: 'rotate(90deg)',
-        transformOrigin: 'center center',
-        position: 'fixed',
-        top: '50%',
-        left: '50%',
-        marginTop: '-50vw', // Half of height
-        marginLeft: '-50vh', // Half of width
-      };
-    }
-    return { width: '100%', height: '100%' };
-  }, [isMobile, isPortrait]);
   
   const connectors = useMemo(() => shuffle(accent), [accent])
 
-  // Handle canvas click: change accent and trigger impulse - optimized with useCallback
   const handleCanvasClick = useCallback(() => {
-    click(); // Change color accent
-    setTriggerImpulse(prev => prev + 1); // Increment to trigger impulse
+    click();
+    setTriggerImpulse(prev => prev + 1);
   }, []);
 
   return (
-    <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative', background: '#151615' }}>
-      <Canvas
-        onClick={handleCanvasClick}
-        style={canvasStyle}
-        dpr={isMobile ? [0.8, 1.2] : [1, 1.5]}
-        gl={{ 
-          antialias: false,
-          powerPreference: "high-performance",
-          stencil: false,
-          toneMapping: THREE.NoToneMapping,
-        }}
-        camera={{ position: [0, 0, 15], fov: 17.5, near: 1, far: 20 }}
-      >
+    <Canvas
+      onClick={handleCanvasClick}
+      dpr={[1, 1.25]} // Reduced from 1.5
+      gl={{ 
+        antialias: false,
+        powerPreference: "high-performance",
+        stencil: false,
+        depth: true,
+        alpha: false, // No alpha blending
+        preserveDrawingBuffer: false, // Don't preserve buffer
+        premultipliedAlpha: false,
+        toneMapping: THREE.NoToneMapping,
+      }}
+      camera={{ position: [0, 0, 15], fov: 17.5, near: 1, far: 20 }}
+      frameloop="demand" // Only render when needed
+    >
       <color attach="background" args={['#151615']} />
       
-      {/* Simplified lighting setup - less realistic, better performance */}
-      <ambientLight intensity={1.2} /> {/* Increased ambient to reduce shadows */}
-      
-      {/* Single directional light instead of spotlight - no shadows */}
-      <directionalLight 
-        position={[5, 5, 5]} 
-        intensity={0.8}
-        castShadow={false} // Disabled shadows for major performance boost
-      />
+      {/* MINIMAL LIGHTING - Major performance boost */}
+      <ambientLight intensity={1.8} /> {/* Single ambient light only */}
 
       <Physics 
         gravity={[0, 0, 0]} 
-        maxSubSteps={2} // Reduced from 3 for better performance
-        timeStep={1/60} // Fixed timestep for consistent performance
+        maxSubSteps={1} // Reduced from 2
+        timeStep={1/60}
+        interpolation={false} // Disable interpolation for better performance
       >
         <Pointer />
-        {/* Pass triggerImpulse to each Connector */}
         {connectors.map((props, i) => <Connector key={i} triggerImpulse={triggerImpulse} {...props} />)}
       </Physics>
 
-      {/* Post-processing back to normal since the landscape trick is working */}
-      <EffectComposer 
-        disableNormalPass 
-        multisampling={isMobile ? 0 : 1}
-      >
-        <N8AO 
-          distanceFalloff={2} 
-          aoRadius={0.5}
-          intensity={2}
-          samples={isMobile ? 4 : 8}
-        />
-      </EffectComposer>
-
-      {/* Simplified environment - much less realistic lighting */}
-      <Environment resolution={16}> {/* Heavily reduced from 32 */}
-        <group rotation={[-Math.PI / 3, 0, 1]}>
-          {/* Reduced to just 2 lightformers with lower intensity */}
-          <Lightformer form="circle" intensity={2} rotation-x={Math.PI / 2} position={[0, 5, -9]} scale={2} />
-          <Lightformer form="circle" intensity={1.5} rotation-y={-Math.PI / 2} position={[10, 1, 0]} scale={8} />
-        </group>
+      {/* REMOVED POST-PROCESSING - Huge performance gain */}
+      
+      {/* MINIMAL ENVIRONMENT */}
+      <Environment resolution={8}> {/* Reduced from 16 */}
+        <Lightformer form="circle" intensity={1} position={[0, 5, -9]} scale={2} />
       </Environment>
     </Canvas>
-    </div>
   )
 }
 
@@ -122,78 +77,70 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
   const api = useRef()
   const pos = useMemo(() => position || [r(10), r(10), r(10)], [position])
 
-  // Random offsets for individual oscillation - cached for better performance
+  // Cached values
   const offset = useMemo(() => ({
     x: Math.random() * Math.PI * 2,
     y: Math.random() * Math.PI * 2,
     z: Math.random() * Math.PI * 2
   }), [])
 
-  // Pre-calculate oscillation speeds for performance
   const oscSpeeds = useMemo(() => ({
     x: 0.8,
     y: 1.0,
     z: 0.6
   }), [])
 
+  // PERFORMANCE: Reduce update frequency
+  let frameCount = 0
   useFrame((state, delta) => {
+    frameCount++
+    if (frameCount % 2 !== 0) return // Skip every other frame
+    
     if (!api.current) return
     const t = state.clock.getElapsedTime()
 
-    // Get current position
     const currentPosition = api.current.translation()
 
-    // ✅ Strong inward pull to center - batch calculations for better performance
+    // Simplified physics calculations
     const forceMultiplier = 0.4
     const inward = {
-      x: -currentPosition.x * forceMultiplier + Math.sin(t * oscSpeeds.x + offset.x) * 0.1,
-      y: -currentPosition.y * forceMultiplier + Math.cos(t * oscSpeeds.y + offset.y) * 0.1,
-      z: -currentPosition.z * forceMultiplier + Math.sin(t * oscSpeeds.z + offset.z) * 0.05
+      x: -currentPosition.x * forceMultiplier,
+      y: -currentPosition.y * forceMultiplier, 
+      z: -currentPosition.z * forceMultiplier
     }
 
-    // ✅ Apply impulse and explicitly wake up the body
     api.current.applyImpulse(inward, true)
 
-    // ✅ Add small torque for random rotation - batch calculations
-    const torqueStrength = 0.001
-    api.current.applyTorqueImpulse({
-      x: Math.sin(t + offset.x) * torqueStrength,
-      y: Math.cos(t + offset.y) * torqueStrength,
-      z: Math.sin(t + offset.z) * torqueStrength
-    }, true)
+    // REMOVED: Complex oscillations and torque for better performance
   })
 
-  // Effect to apply impulse when triggerImpulse changes - optimized to reuse vector
   useEffect(() => {
-    if (api.current && triggerImpulse > 0) { // Only apply if triggerImpulse is incremented
+    if (api.current && triggerImpulse > 0) {
       const currentPosition = api.current.translation();
-      
-      // Reuse the existing vec object to avoid creating new Vector3
       vec.set(currentPosition.x, currentPosition.y, currentPosition.z)
       vec.normalize()
-      vec.multiplyScalar(50) // Adjust this value to control how strong the push is
-
+      vec.multiplyScalar(50)
       api.current.applyImpulse(vec, true);
     }
-  }, [triggerImpulse, vec]); // Include vec in dependencies
+  }, [triggerImpulse, vec]);
 
   return (
     <RigidBody
       linearDamping={2}  
-      angularDamping={0.5}  
+      angularDamping={0.8} // Increased damping to reduce calculations
       friction={0.1}
-      restitution={0.7}
+      restitution={0.5} // Reduced bouncing
       position={pos}
       ref={api}
       colliders={false}
-      canSleep={false}  
+      canSleep={true} // Allow sleeping for inactive objects
     >
-      <CuboidCollider args={[0.6, 1.27, 0.6]} />
-      <CuboidCollider args={[1.27, 0.6, 0.6]} />
-      <CuboidCollider args={[0.6, 0.6, 1.27]} />
+      {/* REDUCED COLLIDERS - Single collider instead of 3 */}
+      <CuboidCollider args={[1, 1, 1]} />
+      
       {children ? children : <Model {...props} />}
-      {/* Reduced accent light intensity and distance */}
-      {accent && <pointLight intensity={1.5} distance={2} color={props.color} decay={2} />}
+      
+      {/* REMOVED: Accent lights - Major performance boost */}
     </RigidBody>
   )
 }
@@ -201,23 +148,30 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
 function Pointer({ vec = new THREE.Vector3() }) {
   const ref = useRef()
   
+  // PERFORMANCE: Reduce pointer update frequency
+  let frameCount = 0
   useFrame(({ mouse, viewport }) => {
-    ref.current?.setNextKinematicTranslation(vec.set((mouse.x * viewport.width) / 2, (mouse.y * viewport.height) / 2, 0))
+    frameCount++
+    if (frameCount % 3 !== 0) return // Update every 3rd frame only
+    
+    ref.current?.setNextKinematicTranslation(
+      vec.set((mouse.x * viewport.width) / 2, (mouse.y * viewport.height) / 2, 0)
+    )
   })
   
   return (
     <RigidBody position={[0, 0, 0]} type="kinematicPosition" colliders={false} ref={ref}>
-      <BallCollider args={[0.4]} /> {/* Softer push */}
+      <BallCollider args={[0.4]} />
     </RigidBody>
   )
 }
 
-function Model({ color = 'white', roughness = 0.2, metalness = 0.5, clearcoat = 0.8 }) {
+// PERFORMANCE: Simplified material with fewer properties
+function Model({ color = 'white', roughness = 0.5, metalness = 0.2 }) {
   const ref = useRef()
   const { nodes } = useGLTF('/c-transformed.glb')
 
   useFrame((state, delta) => {
-    // Instant color change: directly set the color
     if (ref.current && ref.current.material) {
       ref.current.material.color.set(color);
     }
@@ -226,17 +180,18 @@ function Model({ color = 'white', roughness = 0.2, metalness = 0.5, clearcoat = 
   return (
     <mesh
       ref={ref}
-      castShadow={false}    // Disabled shadow casting for better performance
-      receiveShadow={false} // Disabled shadow receiving for better performance
+      castShadow={false}
+      receiveShadow={false}
       scale={10}
       geometry={nodes.connector.geometry}
+      frustumCulled={true} // Enable frustum culling
     >
-      <meshPhysicalMaterial
-        clearcoat={clearcoat}
-        clearcoatRoughness={0.1}
+      {/* SWITCHED TO STANDARD MATERIAL - Much better performance */}
+      <meshStandardMaterial
+        color={color}
         metalness={metalness}
         roughness={roughness}
-        reflectivity={0.3} // Reduced from 0.6 for less shine
+        // Removed clearcoat and other expensive properties
       />
     </mesh>
   )

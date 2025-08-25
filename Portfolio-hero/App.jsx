@@ -96,15 +96,11 @@ export default function App() {
       <pointLight position={[3, -3, 8]} intensity={0.3} decay={2} />
 
       <Physics gravity={[0, 0, 0]} maxSubSteps={1} timeStep={1/60}>
-        {/* Gyro pointer */}
         <Pointer orientation={orientation} isSupported={isSupported} permission={permission} />
         {connectors.map((props, i) => (
           <Connector
             key={i}
             triggerImpulse={triggerImpulse}
-            orientation={orientation}
-            isSupported={isSupported}
-            permission={permission}
             {...props}
           />
         ))}
@@ -118,14 +114,14 @@ export default function App() {
         </group>
       </Environment>
 
-      {/* Optional: pan camera with gyro */}
+      {/* Camera now pans subtly with gyro only */}
       <CameraGyro orientation={orientation} isSupported={isSupported} permission={permission} />
     </Canvas>
   )
 }
 
 // ---------------- Connectors ----------------
-function Connector({ position, vec = new THREE.Vector3(), r = THREE.MathUtils.randFloatSpread, orientation, isSupported, permission, accent, triggerImpulse, ...props }) {
+function Connector({ position, vec = new THREE.Vector3(), r = THREE.MathUtils.randFloatSpread, triggerImpulse, ...props }) {
   const api = useRef()
   const pos = useMemo(() => position || [r(10), r(10), r(10)], [position])
 
@@ -147,14 +143,6 @@ function Connector({ position, vec = new THREE.Vector3(), r = THREE.MathUtils.ra
       x: -currentPosition.x * forceMultiplier + Math.sin(t * oscSpeeds.x + offset.x) * 0.1,
       y: -currentPosition.y * forceMultiplier + Math.cos(t * oscSpeeds.y + offset.y) * 0.1,
       z: -currentPosition.z * forceMultiplier + Math.sin(t * oscSpeeds.z + offset.z) * 0.05
-    }
-
-    // Gyroscope influence
-    if (isSupported && permission === 'granted') {
-      const tiltX = (orientation.gamma / 30) // left-right tilt
-      const tiltY = (orientation.beta / 30)  // forward-back tilt
-      inward.x += -tiltX * 2
-      inward.y += tiltY * 2
     }
 
     api.current.applyImpulse(inward, true)
@@ -216,14 +204,13 @@ function Pointer({ vec = new THREE.Vector3(), orientation, isSupported, permissi
 
 // ---------------- Gyro Camera ----------------
 function CameraGyro({ orientation, isSupported, permission }) {
-  const ref = useRef()
   useFrame((state) => {
     if (!isSupported || permission !== 'granted') return
     const { beta, gamma } = orientation
     const cam = state.camera
-    // Slight tilt effect
-    cam.position.x = THREE.MathUtils.lerp(cam.position.x, gamma / 20, 0.05)
-    cam.position.y = THREE.MathUtils.lerp(cam.position.y, -beta / 40, 0.05)
+    // Small, smoothed pan instead of hard movement
+    cam.position.x = THREE.MathUtils.lerp(cam.position.x, gamma / 50, 0.05)
+    cam.position.y = THREE.MathUtils.lerp(cam.position.y, -beta / 80, 0.05)
     cam.lookAt(0, 0, 0)
   })
   return null

@@ -46,12 +46,19 @@ export default function App() {
         toneMapping: THREE.NoToneMapping,
       }}
       camera={{ position: [0, 0, 15], fov: 17.5, near: 1, far: 20 }}
-      frameloop="demand" // Only render when needed
+      frameloop="always" // Always render for continuous simulation
     >
       <color attach="background" args={['#151615']} />
       
-      {/* MINIMAL LIGHTING - Major performance boost */}
-      <ambientLight intensity={1.8} /> {/* Single ambient light only */}
+      {/* RESTORED 3D LIGHTING - Proper depth and shadows */}
+      <ambientLight intensity={1.2} />
+      <directionalLight 
+        position={[5, 5, 5]} 
+        intensity={0.8}
+        castShadow={false}
+      />
+      <pointLight position={[-5, -5, -5]} intensity={0.4} decay={2} />
+      <pointLight position={[3, -3, 8]} intensity={0.3} decay={2} />
 
       <Physics 
         gravity={[0, 0, 0]} 
@@ -65,9 +72,13 @@ export default function App() {
 
       {/* REMOVED POST-PROCESSING - Huge performance gain */}
       
-      {/* MINIMAL ENVIRONMENT */}
-      <Environment resolution={8}> {/* Reduced from 16 */}
-        <Lightformer form="circle" intensity={1} position={[0, 5, -9]} scale={2} />
+      {/* ENHANCED ENVIRONMENT - Better 3D appearance */}
+      <Environment resolution={16}> {/* Increased for better reflections */}
+        <group rotation={[-Math.PI / 3, 0, 1]}>
+          <Lightformer form="circle" intensity={2} rotation-x={Math.PI / 2} position={[0, 5, -9]} scale={2} />
+          <Lightformer form="circle" intensity={1.5} rotation-y={-Math.PI / 2} position={[10, 1, 0]} scale={8} />
+          <Lightformer form="ring" intensity={0.8} rotation-y={Math.PI / 2} position={[-10, 2, 0]} scale={4} />
+        </group>
       </Environment>
     </Canvas>
   )
@@ -90,28 +101,36 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
     z: 0.6
   }), [])
 
-  // PERFORMANCE: Reduce update frequency
+  // AUTO-START: Don't skip frames initially to ensure simulation starts
   let frameCount = 0
   useFrame((state, delta) => {
-    frameCount++
-    if (frameCount % 2 !== 0) return // Skip every other frame
-    
     if (!api.current) return
+    
+    frameCount++
+    // Always run physics for first 180 frames (3 seconds), then optimize
+    const shouldOptimize = frameCount > 180 && triggerImpulse === 0
+    if (shouldOptimize && frameCount % 2 !== 0) return
+    
     const t = state.clock.getElapsedTime()
-
     const currentPosition = api.current.translation()
 
-    // Simplified physics calculations
+    // Restored original physics for natural movement
     const forceMultiplier = 0.4
     const inward = {
-      x: -currentPosition.x * forceMultiplier,
-      y: -currentPosition.y * forceMultiplier, 
-      z: -currentPosition.z * forceMultiplier
+      x: -currentPosition.x * forceMultiplier + Math.sin(t * oscSpeeds.x + offset.x) * 0.1,
+      y: -currentPosition.y * forceMultiplier + Math.cos(t * oscSpeeds.y + offset.y) * 0.1,
+      z: -currentPosition.z * forceMultiplier + Math.sin(t * oscSpeeds.z + offset.z) * 0.05
     }
 
     api.current.applyImpulse(inward, true)
 
-    // REMOVED: Complex oscillations and torque for better performance
+    // Restored torque for natural rotation
+    const torqueStrength = 0.001
+    api.current.applyTorqueImpulse({
+      x: Math.sin(t + offset.x) * torqueStrength,
+      y: Math.cos(t + offset.y) * torqueStrength,
+      z: Math.sin(t + offset.z) * torqueStrength
+    }, true)
   })
 
   useEffect(() => {
@@ -127,16 +146,18 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
   return (
     <RigidBody
       linearDamping={2}  
-      angularDamping={0.8} // Increased damping to reduce calculations
+      angularDamping={0.5} // Restored for better movement
       friction={0.1}
-      restitution={0.5} // Reduced bouncing
+      restitution={0.7} // Restored bouncing for better dynamics
       position={pos}
       ref={api}
       colliders={false}
-      canSleep={true} // Allow sleeping for inactive objects
+      canSleep={false} // Prevent sleeping to ensure continuous movement
     >
-      {/* REDUCED COLLIDERS - Single collider instead of 3 */}
-      <CuboidCollider args={[1, 1, 1]} />
+      {/* RESTORED ORIGINAL COLLIDERS - Prevents clipping */}
+      <CuboidCollider args={[0.6, 1.27, 0.6]} />
+      <CuboidCollider args={[1.27, 0.6, 0.6]} />
+      <CuboidCollider args={[0.6, 0.6, 1.27]} />
       
       {children ? children : <Model {...props} />}
       
@@ -148,12 +169,8 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
 function Pointer({ vec = new THREE.Vector3() }) {
   const ref = useRef()
   
-  // PERFORMANCE: Reduce pointer update frequency
-  let frameCount = 0
+  // AUTO-START: Always update pointer for immediate interaction
   useFrame(({ mouse, viewport }) => {
-    frameCount++
-    if (frameCount % 3 !== 0) return // Update every 3rd frame only
-    
     ref.current?.setNextKinematicTranslation(
       vec.set((mouse.x * viewport.width) / 2, (mouse.y * viewport.height) / 2, 0)
     )
@@ -166,8 +183,8 @@ function Pointer({ vec = new THREE.Vector3() }) {
   )
 }
 
-// PERFORMANCE: Simplified material with fewer properties
-function Model({ color = 'white', roughness = 0.5, metalness = 0.2 }) {
+// BALANCED MATERIAL: Better 3D appearance with good performance
+function Model({ color = 'white', roughness = 0.2, metalness = 0.5 }) {
   const ref = useRef()
   const { nodes } = useGLTF('/c-transformed.glb')
 
@@ -184,14 +201,14 @@ function Model({ color = 'white', roughness = 0.5, metalness = 0.2 }) {
       receiveShadow={false}
       scale={10}
       geometry={nodes.connector.geometry}
-      frustumCulled={true} // Enable frustum culling
+      frustumCulled={true}
     >
-      {/* SWITCHED TO STANDARD MATERIAL - Much better performance */}
+      {/* BALANCED: Standard material with better visual properties */}
       <meshStandardMaterial
         color={color}
         metalness={metalness}
         roughness={roughness}
-        // Removed clearcoat and other expensive properties
+        envMapIntensity={0.5} // Add environment reflections for depth
       />
     </mesh>
   )

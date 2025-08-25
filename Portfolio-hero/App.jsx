@@ -3,133 +3,168 @@ import { useRef, useReducer, useMemo, useState, useEffect, useCallback } from 'r
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useGLTF, Environment, Lightformer } from '@react-three/drei'
 import { CuboidCollider, BallCollider, Physics, RigidBody } from '@react-three/rapier'
-import { EffectComposer, N8AO } from '@react-three/postprocessing'
+
+// ---------------- Gyroscope Hook (No changes needed here) ----------------
+function useGyroscope() {
+  const [orientation, setOrientation] = useState({ beta: 0, gamma: 0, alpha: 0 })
+  const [permission, setPermission] = useState('unknown')
+  const [isSupported, setIsSupported] = useState(false)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'DeviceOrientationEvent' in window) {
+      setIsSupported(true)
+      if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+        // iOS ≥13 requires user gesture. We'll assume for this app
+        // you'd have a button to trigger this, but for now, we'll leave it.
+        // For simplicity, let's treat it as denied until a user action.
+        setPermission('denied') 
+      } else {
+        setPermission('granted')
+        startListening()
+      }
+    } else {
+      setIsSupported(false)
+      setPermission('denied')
+    }
+
+    function startListening() {
+      const handleOrientation = (event) => {
+        const beta = event.beta ?? 0
+        const gamma = event.gamma ?? 0
+        const alpha = event.alpha ?? 0
+        setOrientation({ beta, gamma, alpha })
+      }
+
+      window.addEventListener('deviceorientation', handleOrientation, { passive: true })
+      return () => window.removeEventListener('deviceorientation', handleOrientation)
+    }
+
+    if (permission === 'granted') {
+      return startListening()
+    }
+  }, [permission])
+
+  return { orientation, permission, isSupported }
+}
 
 // 🎨 Accent colors
 const accents = ['#4060ff', '#8FFE09', '#ED141F', '#fff500']
 
-// Shuffle with clearcoat, roughness, and metalness
 const shuffle = (accent = 0) => [
-  { color: '#444', roughness: 0.75, metalness: 0, clearcoat: 0 },
-  { color: '#444', roughness: 0.1, metalness: 0.8, clearcoat: 1 },
-  { color: '#444', roughness: 0.75, metalness: 0.2, clearcoat: 0.8 },
-  { color: 'white', roughness: 0.75, metalness: 0, clearcoat: 0.1},
-  { color: 'white', roughness: 0.75, metalness: 0, clearcoat: 1 },
-  { color: 'white', roughness: 0.1, metalness: 0.2, clearcoat: 1 },
-  { color: accents[accent], roughness: 0.75, metalness: 0.2, clearcoat: 0.1, accent: true },
-  { color: accents[accent], roughness: 0.1, metalness: 0.5, clearcoat: 1, accent: true },
-  { color: accents[accent], roughness: 0.1, metalness: 0.2, clearcoat: 1, accent: true }
+  { color: '#444', roughness: 0.75, metalness: 0 },
+  { color: '#444', roughness: 0.1, metalness: 0.8 },
+  { color: '#444', roughness: 0.75, metalness: 0.2 },
+  { color: 'white', roughness: 0.75, metalness: 0 },
+  { color: 'white', roughness: 0.75, metalness: 0 },
+  { color: 'white', roughness: 0.1, metalness: 0.2 },
+  { color: accents[accent], roughness: 0.75, metalness: 0.2, accent: true },
+  { color: accents[accent], roughness: 0.1, metalness: 0.5, accent: true },
+  { color: accents[accent], roughness: 0.1, metalness: 0.2, accent: true }
 ]
 
 export default function App() {
   const [accent, click] = useReducer((state) => ++state % accents.length, 0)
-  // State to trigger impulse on click
-  const [triggerImpulse, setTriggerImpulse] = useState(0);
-  
+  const [triggerImpulse, setTriggerImpulse] = useState(0)
+
+  const { orientation, permission, isSupported } = useGyroscope()
   const connectors = useMemo(() => shuffle(accent), [accent])
 
-  // Handle canvas click: change accent and trigger impulse - optimized with useCallback
   const handleCanvasClick = useCallback(() => {
-    click(); // Change color accent
-    setTriggerImpulse(prev => prev + 1); // Increment to trigger impulse
-  }, []);
+    click()
+    setTriggerImpulse(prev => prev + 1)
+  }, [])
 
   return (
     <Canvas
-      onClick={handleCanvasClick} // Use the new handler
-      dpr={[1, 1.5]}
-      gl={{ 
+      onClick={handleCanvasClick}
+      dpr={[1, 1.25]}
+      gl={{
         antialias: false,
-        powerPreference: "high-performance", // Request high-performance GPU
-        stencil: false, // Disable stencil buffer for better performance
-        toneMapping: THREE.NoToneMapping, // Disable tone mapping for flatter lighting
+        powerPreference: "high-performance",
+        stencil: false,
+        depth: true,
+        alpha: false,
+        preserveDrawingBuffer: false,
+        premultipliedAlpha: false,
+        toneMapping: THREE.NoToneMapping,
       }}
-      camera={{ position: [0, 0, 15], fov: 17.5, near: 1, far: 20 }}
+      camera={{ position: [0, 0, 15], fov: 17.5, near: 1, far: 40 }} // Increased 'far' plane
+      frameloop="always"
     >
       <color attach="background" args={['#151615']} />
-      
-      {/* Simplified lighting setup - less realistic, better performance */}
-      <ambientLight intensity={1.2} /> {/* Increased ambient to reduce shadows */}
-      
-      {/* Single directional light instead of spotlight - no shadows */}
-      <directionalLight 
-        position={[5, 5, 5]} 
-        intensity={0.8}
-        castShadow={false} // Disabled shadows for major performance boost
-      />
+      <ambientLight intensity={1.2} />
+      <directionalLight position={[5, 5, 5]} intensity={0.8} />
+      <pointLight position={[-5, -5, -5]} intensity={0.4} decay={2} />
+      <pointLight position={[3, -3, 8]} intensity={0.3} decay={2} />
 
-      <Physics 
-        gravity={[0, 0, 0]} 
-        maxSubSteps={2} // Reduced from 3 for better performance
-        timeStep={1/60} // Fixed timestep for consistent performance
-      >
-        <Pointer />
-        {/* Pass triggerImpulse to each Connector */}
-        {connectors.map((props, i) => <Connector key={i} triggerImpulse={triggerImpulse} {...props} />)}
+      <Physics gravity={[0, 0, 0]} maxSubSteps={1} timeStep={1/60}>
+        <Pointer orientation={orientation} isSupported={isSupported} permission={permission} />
+        {connectors.map((props, i) => (
+          <Connector
+            key={i}
+            triggerImpulse={triggerImpulse}
+            orientation={orientation}
+            isSupported={isSupported}
+            permission={permission}
+            {...props}
+          />
+        ))}
       </Physics>
 
-      {/* Simplified post-processing */}
-      <EffectComposer 
-        disableNormalPass 
-        multisampling={1} // Reduced from 2 for better performance
-      >
-        <N8AO 
-          distanceFalloff={2} 
-          aoRadius={0.5} // Reduced AO radius
-          intensity={2} // Reduced intensity
-          samples={8} // Heavily reduced samples for better performance
-        />
-      </EffectComposer>
-
-      {/* Simplified environment - much less realistic lighting */}
-      <Environment resolution={16}> {/* Heavily reduced from 32 */}
+      <Environment resolution={16}>
         <group rotation={[-Math.PI / 3, 0, 1]}>
-          {/* Reduced to just 2 lightformers with lower intensity */}
           <Lightformer form="circle" intensity={2} rotation-x={Math.PI / 2} position={[0, 5, -9]} scale={2} />
           <Lightformer form="circle" intensity={1.5} rotation-y={-Math.PI / 2} position={[10, 1, 0]} scale={8} />
+          <Lightformer form="ring" intensity={0.8} rotation-y={Math.PI / 2} position={[-10, 2, 0]} scale={4} />
         </group>
       </Environment>
+      
+      <CameraGyro orientation={orientation} isSupported={isSupported} permission={permission} />
     </Canvas>
   )
 }
 
-function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.MathUtils.randFloatSpread, accent, triggerImpulse, ...props }) {
+// ---------------- Connectors (FIXED) ----------------
+function Connector({ position, r = THREE.MathUtils.randFloatSpread, orientation, isSupported, permission, accent, triggerImpulse, ...props }) {
   const api = useRef()
-  const pos = useMemo(() => position || [r(10), r(10), r(10)], [position])
+  // This vector is now created once and will not change on re-renders
+  const vec = useMemo(() => new THREE.Vector3(), [])
+  const pos = useMemo(() => position || [r(10), r(10), r(10)], [position, r])
 
-  // Random offsets for individual oscillation - cached for better performance
   const offset = useMemo(() => ({
     x: Math.random() * Math.PI * 2,
     y: Math.random() * Math.PI * 2,
     z: Math.random() * Math.PI * 2
   }), [])
 
-  // Pre-calculate oscillation speeds for performance
-  const oscSpeeds = useMemo(() => ({
-    x: 0.8,
-    y: 1.0,
-    z: 0.6
-  }), [])
+  const oscSpeeds = { x: 0.8, y: 1.0, z: 0.6 }
 
-  useFrame((state, delta) => {
+  useFrame((state) => {
     if (!api.current) return
     const t = state.clock.getElapsedTime()
-
-    // Get current position
     const currentPosition = api.current.translation()
-
-    // ✅ Strong inward pull to center - batch calculations for better performance
+    
+    // Centering and oscillating force
     const forceMultiplier = 0.4
-    const inward = {
+    let inward = {
       x: -currentPosition.x * forceMultiplier + Math.sin(t * oscSpeeds.x + offset.x) * 0.1,
       y: -currentPosition.y * forceMultiplier + Math.cos(t * oscSpeeds.y + offset.y) * 0.1,
       z: -currentPosition.z * forceMultiplier + Math.sin(t * oscSpeeds.z + offset.z) * 0.05
     }
 
-    // ✅ Apply impulse and explicitly wake up the body
+    // Gyroscope gravity influence
+    if (isSupported && permission === 'granted') {
+      const maxTilt = 30
+      const gyroStrength = 0.15
+      const normalizedGamma = Math.max(-1, Math.min(1, orientation.gamma / maxTilt))
+      const normalizedBeta = Math.max(-1, Math.min(1, orientation.beta / maxTilt))
+      inward.x += -normalizedGamma * gyroStrength
+      inward.y += normalizedBeta * gyroStrength
+    }
+    
     api.current.applyImpulse(inward, true)
 
-    // ✅ Add small torque for random rotation - batch calculations
+    // Torque for rotation
     const torqueStrength = 0.001
     api.current.applyTorqueImpulse({
       x: Math.sin(t + offset.x) * torqueStrength,
@@ -138,81 +173,109 @@ function Connector({ position, children, vec = new THREE.Vector3(), r = THREE.Ma
     }, true)
   })
 
-  // Effect to apply impulse when triggerImpulse changes - optimized to reuse vector
+  // Click impulse effect
   useEffect(() => {
-    if (api.current && triggerImpulse > 0) { // Only apply if triggerImpulse is incremented
-      const currentPosition = api.current.translation();
-      
-      // Reuse the existing vec object to avoid creating new Vector3
-      vec.set(currentPosition.x, currentPosition.y, currentPosition.z)
-      vec.normalize()
-      vec.multiplyScalar(50) // Adjust this value to control how strong the push is
-
-      api.current.applyImpulse(vec, true);
+    if (api.current && triggerImpulse > 0) {
+      const currentPosition = api.current.translation()
+      vec.set(currentPosition.x, currentPosition.y, currentPosition.z).normalize().multiplyScalar(50)
+      api.current.applyImpulse(vec, true)
     }
-  }, [triggerImpulse, vec]); // Include vec in dependencies
+  // The dependency array is now correct. It only triggers when the click count changes.
+  }, [triggerImpulse]) // <-- CRITICAL FIX: Removed 'vec' from dependencies
 
   return (
     <RigidBody
-      linearDamping={2}  
-      angularDamping={0.5}  
+      linearDamping={2}
+      angularDamping={0.5}
       friction={0.1}
       restitution={0.7}
       position={pos}
       ref={api}
       colliders={false}
-      canSleep={false}  
+      canSleep={false}
     >
       <CuboidCollider args={[0.6, 1.27, 0.6]} />
       <CuboidCollider args={[1.27, 0.6, 0.6]} />
       <CuboidCollider args={[0.6, 0.6, 1.27]} />
-      {children ? children : <Model {...props} />}
-      {/* Reduced accent light intensity and distance */}
-      {accent && <pointLight intensity={1.5} distance={2} color={props.color} decay={2} />}
+      <Model {...props} />
     </RigidBody>
   )
 }
 
-function Pointer({ vec = new THREE.Vector3() }) {
+// ---------------- Pointer (No changes needed here) ----------------
+function Pointer({ vec = new THREE.Vector3(), orientation, isSupported, permission }) {
   const ref = useRef()
-  
   useFrame(({ mouse, viewport }) => {
-    ref.current?.setNextKinematicTranslation(vec.set((mouse.x * viewport.width) / 2, (mouse.y * viewport.height) / 2, 0))
+    if (!ref.current) return
+    let x = (mouse.x * viewport.width) / 2
+    let y = (mouse.y * viewport.height) / 2
+    let z = 0
+
+    if (isSupported && permission === 'granted') {
+      const pointerGyroStrength = 1.5
+      const maxTilt = 45
+      const clampedGamma = Math.max(-maxTilt, Math.min(maxTilt, orientation.gamma))
+      const clampedBeta = Math.max(-maxTilt, Math.min(maxTilt, orientation.beta))
+      x += (clampedGamma / maxTilt) * pointerGyroStrength
+      y += (clampedBeta / maxTilt) * pointerGyroStrength
+      const totalTilt = Math.abs(clampedGamma) + Math.abs(clampedBeta)
+      z = (totalTilt / (maxTilt * 2)) * 0.5
+    }
+
+    ref.current.setNextKinematicTranslation(vec.set(x, y, z))
   })
-  
+
   return (
     <RigidBody position={[0, 0, 0]} type="kinematicPosition" colliders={false} ref={ref}>
-      <BallCollider args={[0.4]} /> {/* Softer push */}
+      <BallCollider args={[0.4]} />
     </RigidBody>
   )
 }
 
-function Model({ color = 'white', roughness = 0.2, metalness = 0.5, clearcoat = 0.8 }) {
+// ---------------- Gyro Camera (FIXED) ----------------
+function CameraGyro({ orientation, isSupported, permission }) {
+  useFrame((state) => {
+    if (!isSupported || permission !== 'granted') return
+    const { beta, gamma } = orientation
+    const cam = state.camera
+
+    // Reduced strength for much more subtle panning
+    const cameraStrength = 0.1 
+    const maxCameraTilt = 20 // Reduced range for less travel
+    const lerpSpeed = 0.06 // Slightly slower for a smoother feel
+
+    // Clamp gyroscope values
+    const clampedGamma = Math.max(-maxCameraTilt, Math.min(maxCameraTilt, gamma))
+    const clampedBeta = Math.max(-maxCameraTilt, Math.min(maxCameraTilt, beta))
+
+    // Calculate target position based on gyro
+    const targetX = clampedGamma * cameraStrength
+    const targetY = -clampedBeta * cameraStrength
+    
+    // Smoothly interpolate (lerp) the camera's position towards the target
+    cam.position.x = THREE.MathUtils.lerp(cam.position.x, targetX, lerpSpeed)
+    cam.position.y = THREE.MathUtils.lerp(cam.position.y, targetY, lerpSpeed)
+
+    // ALWAYS look at the center of the scene for stability
+    cam.lookAt(0, 0, 0)
+  })
+  return null
+}
+
+// ---------------- Model (No changes needed here) ----------------
+function Model({ color = 'white', roughness = 0.2, metalness = 0.5 }) {
   const ref = useRef()
   const { nodes } = useGLTF('/c-transformed.glb')
 
-  useFrame((state, delta) => {
-    // Instant color change: directly set the color
+  useFrame(() => {
     if (ref.current && ref.current.material) {
-      ref.current.material.color.set(color);
+      ref.current.material.color.set(color)
     }
   })
 
   return (
-    <mesh
-      ref={ref}
-      castShadow={false}    // Disabled shadow casting for better performance
-      receiveShadow={false} // Disabled shadow receiving for better performance
-      scale={10}
-      geometry={nodes.connector.geometry}
-    >
-      <meshPhysicalMaterial
-        clearcoat={clearcoat}
-        clearcoatRoughness={0.1}
-        metalness={metalness}
-        roughness={roughness}
-        reflectivity={0.3} // Reduced from 0.6 for less shine
-      />
+    <mesh ref={ref} scale={10} geometry={nodes.connector.geometry}>
+      <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} envMapIntensity={0.5} />
     </mesh>
   )
 }

@@ -96,11 +96,15 @@ export default function App() {
       <pointLight position={[3, -3, 8]} intensity={0.3} decay={2} />
 
       <Physics gravity={[0, 0, 0]} maxSubSteps={1} timeStep={1/60}>
+        {/* Gyro pointer - much gentler */}
         <Pointer orientation={orientation} isSupported={isSupported} permission={permission} />
         {connectors.map((props, i) => (
           <Connector
             key={i}
             triggerImpulse={triggerImpulse}
+            orientation={orientation}
+            isSupported={isSupported}
+            permission={permission}
             {...props}
           />
         ))}
@@ -114,14 +118,14 @@ export default function App() {
         </group>
       </Environment>
 
-      {/* Camera now pans subtly with gyro only */}
+      {/* Optional: pan camera with gyro */}
       <CameraGyro orientation={orientation} isSupported={isSupported} permission={permission} />
     </Canvas>
   )
 }
 
 // ---------------- Connectors ----------------
-function Connector({ position, vec = new THREE.Vector3(), r = THREE.MathUtils.randFloatSpread, triggerImpulse, ...props }) {
+function Connector({ position, vec = new THREE.Vector3(), r = THREE.MathUtils.randFloatSpread, orientation, isSupported, permission, accent, triggerImpulse, ...props }) {
   const api = useRef()
   const pos = useMemo(() => position || [r(10), r(10), r(10)], [position])
 
@@ -133,27 +137,53 @@ function Connector({ position, vec = new THREE.Vector3(), r = THREE.MathUtils.ra
 
   const oscSpeeds = { x: 0.8, y: 1.0, z: 0.6 }
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
     if (!api.current) return
     const t = state.clock.getElapsedTime()
     const currentPosition = api.current.translation()
 
+    // Base centering force
     const forceMultiplier = 0.4
-    let inward = {
+    let centeringForce = {
       x: -currentPosition.x * forceMultiplier + Math.sin(t * oscSpeeds.x + offset.x) * 0.1,
       y: -currentPosition.y * forceMultiplier + Math.cos(t * oscSpeeds.y + offset.y) * 0.1,
       z: -currentPosition.z * forceMultiplier + Math.sin(t * oscSpeeds.z + offset.z) * 0.05
     }
 
-    api.current.applyImpulse(inward, true)
+    // GENTLE GYROSCOPE GRAVITY - Instead of impulses, modify the centering force
+    if (isSupported && permission === 'granted') {
+      // Clamp gyroscope values to reasonable ranges and apply smoothly
+      const maxTilt = 30 // degrees - anything beyond this is clamped
+      const gyroStrength = 0.15 // Much gentler than before
+      
+      // Normalize tilt values to -1 to 1 range, clamped to maxTilt
+      const normalizedGamma = Math.max(-1, Math.min(1, orientation.gamma / maxTilt))
+      const normalizedBeta = Math.max(-1, Math.min(1, orientation.beta / maxTilt))
+      
+      // Apply as gentle "gravity" offset to the centering point
+      centeringForce.x += -normalizedGamma * gyroStrength
+      centeringForce.y += normalizedBeta * gyroStrength
+    }
+
+    // Apply the combined force as a gentle impulse
+    api.current.applyImpulse(centeringForce, true)
+
+    // Gentle torque for rotation
+    const torqueStrength = 0.001
+    api.current.applyTorqueImpulse({
+      x: Math.sin(t + offset.x) * torqueStrength,
+      y: Math.cos(t + offset.y) * torqueStrength,
+      z: Math.sin(t + offset.z) * torqueStrength
+    }, true)
   })
 
+  // Click-based impulse (this stays strong for the "explosion" effect)
   useEffect(() => {
     if (api.current && triggerImpulse > 0) {
       const currentPosition = api.current.translation()
       vec.set(currentPosition.x, currentPosition.y, currentPosition.z)
       vec.normalize()
-      vec.multiplyScalar(50)
+      vec.multiplyScalar(50) // This stays strong for the click effect
       api.current.applyImpulse(vec, true)
     }
   }, [triggerImpulse, vec])
@@ -186,10 +216,21 @@ function Pointer({ vec = new THREE.Vector3(), orientation, isSupported, permissi
     let y = (mouse.y * viewport.height) / 2
     let z = 0
 
+    // MUCH GENTLER pointer movement
     if (isSupported && permission === 'granted') {
-      x += (orientation.gamma / 90) * 3
-      y += (orientation.beta / 180) * 3
-      z = (Math.abs(orientation.gamma) + Math.abs(orientation.beta)) / 100 * 2
+      const pointerGyroStrength = 1.5 // Reduced from 3
+      const maxTilt = 45 // degrees
+      
+      // Clamp and apply gyroscope to pointer position
+      const clampedGamma = Math.max(-maxTilt, Math.min(maxTilt, orientation.gamma))
+      const clampedBeta = Math.max(-maxTilt, Math.min(maxTilt, orientation.beta))
+      
+      x += (clampedGamma / maxTilt) * pointerGyroStrength
+      y += (clampedBeta / maxTilt) * pointerGyroStrength
+      
+      // Subtle depth based on total tilt
+      const totalTilt = Math.abs(clampedGamma) + Math.abs(clampedBeta)
+      z = (totalTilt / (maxTilt * 2)) * 0.5 // Much less depth movement
     }
 
     ref.current.setNextKinematicTranslation(vec.set(x, y, z))
@@ -208,9 +249,18 @@ function CameraGyro({ orientation, isSupported, permission }) {
     if (!isSupported || permission !== 'granted') return
     const { beta, gamma } = orientation
     const cam = state.camera
-    // Small, smoothed pan instead of hard movement
-    cam.position.x = THREE.MathUtils.lerp(cam.position.x, gamma / 50, 0.05)
-    cam.position.y = THREE.MathUtils.lerp(cam.position.y, -beta / 80, 0.05)
+    
+    // MUCH GENTLER camera movement
+    const cameraStrength = 0.02 // Reduced significantly
+    const maxCameraTilt = 15 // degrees
+    
+    // Clamp camera movement
+    const clampedGamma = Math.max(-maxCameraTilt, Math.min(maxCameraTilt, gamma))
+    const clampedBeta = Math.max(-maxCameraTilt, Math.min(maxCameraTilt, beta))
+    
+    // Smooth lerp to new position
+    cam.position.x = THREE.MathUtils.lerp(cam.position.x, clampedGamma * cameraStrength, 0.03)
+    cam.position.y = THREE.MathUtils.lerp(cam.position.y, -clampedBeta * cameraStrength, 0.03)
     cam.lookAt(0, 0, 0)
   })
   return null

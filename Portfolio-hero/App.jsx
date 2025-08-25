@@ -155,7 +155,7 @@ function Connector({ position, r = THREE.MathUtils.randFloatSpread, orientation,
     // Gyroscope gravity influence
     if (isSupported && permission === 'granted') {
       const maxTilt = 30
-      const gyroStrength = 0.15
+      const gyroStrength = 0.3
       const normalizedGamma = Math.max(-1, Math.min(1, orientation.gamma / maxTilt))
       const normalizedBeta = Math.max(-1, Math.min(1, orientation.beta / maxTilt))
       inward.x += -normalizedGamma * gyroStrength

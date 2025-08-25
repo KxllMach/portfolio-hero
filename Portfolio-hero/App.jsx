@@ -142,33 +142,31 @@ function Connector({ position, vec = new THREE.Vector3(), r = THREE.MathUtils.ra
     const t = state.clock.getElapsedTime()
     const currentPosition = api.current.translation()
 
-    // Base centering force
+    // ORIGINAL CENTERING FORCE - Keep this exactly as it was
     const forceMultiplier = 0.4
-    let centeringForce = {
+    let inward = {
       x: -currentPosition.x * forceMultiplier + Math.sin(t * oscSpeeds.x + offset.x) * 0.1,
       y: -currentPosition.y * forceMultiplier + Math.cos(t * oscSpeeds.y + offset.y) * 0.1,
       z: -currentPosition.z * forceMultiplier + Math.sin(t * oscSpeeds.z + offset.z) * 0.05
     }
 
-    // GENTLE GYROSCOPE GRAVITY - Instead of impulses, modify the centering force
+    // SEPARATE GYROSCOPE GRAVITY - Only modify the centering target, not add to impulse
     if (isSupported && permission === 'granted') {
-      // Clamp gyroscope values to reasonable ranges and apply smoothly
-      const maxTilt = 30 // degrees - anything beyond this is clamped
-      const gyroStrength = 0.15 // Much gentler than before
+      const maxTilt = 30 // degrees
+      const gyroStrength = 0.15
       
-      // Normalize tilt values to -1 to 1 range, clamped to maxTilt
       const normalizedGamma = Math.max(-1, Math.min(1, orientation.gamma / maxTilt))
       const normalizedBeta = Math.max(-1, Math.min(1, orientation.beta / maxTilt))
       
-      // Apply as gentle "gravity" offset to the centering point
-      centeringForce.x += -normalizedGamma * gyroStrength
-      centeringForce.y += normalizedBeta * gyroStrength
+      // Modify the centering force direction, not add impulses
+      inward.x += -normalizedGamma * gyroStrength
+      inward.y += normalizedBeta * gyroStrength
     }
 
-    // Apply the combined force as a gentle impulse
-    api.current.applyImpulse(centeringForce, true)
+    // Apply ONLY the centering force - no separate gyro impulses
+    api.current.applyImpulse(inward, true)
 
-    // Gentle torque for rotation
+    // Original torque
     const torqueStrength = 0.001
     api.current.applyTorqueImpulse({
       x: Math.sin(t + offset.x) * torqueStrength,
@@ -177,13 +175,13 @@ function Connector({ position, vec = new THREE.Vector3(), r = THREE.MathUtils.ra
     }, true)
   })
 
-  // Click-based impulse (this stays strong for the "explosion" effect)
+  // SEPARATE CLICK IMPULSE - Keep completely isolated from gyro
   useEffect(() => {
     if (api.current && triggerImpulse > 0) {
       const currentPosition = api.current.translation()
       vec.set(currentPosition.x, currentPosition.y, currentPosition.z)
       vec.normalize()
-      vec.multiplyScalar(50) // This stays strong for the click effect
+      vec.multiplyScalar(50)
       api.current.applyImpulse(vec, true)
     }
   }, [triggerImpulse, vec])
@@ -218,7 +216,7 @@ function Pointer({ vec = new THREE.Vector3(), orientation, isSupported, permissi
 
     // MUCH GENTLER pointer movement
     if (isSupported && permission === 'granted') {
-      const pointerGyroStrength = 0.05 // Reduced from 3
+      const pointerGyroStrength = 1.5 // Reduced from 3
       const maxTilt = 45 // degrees
       
       // Clamp and apply gyroscope to pointer position
@@ -245,23 +243,51 @@ function Pointer({ vec = new THREE.Vector3(), orientation, isSupported, permissi
 
 // ---------------- Gyro Camera ----------------
 function CameraGyro({ orientation, isSupported, permission }) {
+  const targetPosition = useRef({ x: 0, y: 0, z: 15 })
+  const targetRotation = useRef({ x: 0, y: 0, z: 0 })
+  
   useFrame((state) => {
     if (!isSupported || permission !== 'granted') return
-    const { beta, gamma } = orientation
+    const { beta, gamma, alpha } = orientation
     const cam = state.camera
     
-    // MUCH GENTLER camera movement
-    const cameraStrength = 0.8 // Reduced significantly
-    const maxCameraTilt = 20 // degrees
+    // IMPROVED CAMERA PANNING - More responsive and natural
+    const cameraStrength = 0.8  // Increased for more noticeable effect
+    const maxCameraTilt = 25    // Increased range
+    const lerpSpeed = 0.08      // Faster response
     
-    // Clamp camera movement
+    // Clamp gyroscope values
     const clampedGamma = Math.max(-maxCameraTilt, Math.min(maxCameraTilt, gamma))
     const clampedBeta = Math.max(-maxCameraTilt, Math.min(maxCameraTilt, beta))
+    const clampedAlpha = alpha || 0
     
-    // Smooth lerp to new position
-    cam.position.x = THREE.MathUtils.lerp(cam.position.x, clampedGamma * cameraStrength, 0.03)
-    cam.position.y = THREE.MathUtils.lerp(cam.position.y, -clampedBeta * cameraStrength, 0.03)
-    cam.lookAt(0, 0, 0)
+    // Calculate target position based on gyro
+    targetPosition.current.x = clampedGamma * cameraStrength
+    targetPosition.current.y = -clampedBeta * cameraStrength
+    targetPosition.current.z = 15 + Math.sin(clampedAlpha * Math.PI / 180) * 0.5 // Subtle depth with compass
+    
+    // Calculate target rotation for more dynamic camera
+    targetRotation.current.x = clampedBeta * 0.002  // Subtle pitch
+    targetRotation.current.y = clampedGamma * 0.001 // Subtle yaw
+    targetRotation.current.z = clampedGamma * 0.001 // Subtle roll for natural feel
+    
+    // Smooth lerp to target position
+    cam.position.x = THREE.MathUtils.lerp(cam.position.x, targetPosition.current.x, lerpSpeed)
+    cam.position.y = THREE.MathUtils.lerp(cam.position.y, targetPosition.current.y, lerpSpeed)
+    cam.position.z = THREE.MathUtils.lerp(cam.position.z, targetPosition.current.z, lerpSpeed * 0.5) // Slower Z movement
+    
+    // Apply subtle rotation
+    cam.rotation.x = THREE.MathUtils.lerp(cam.rotation.x, targetRotation.current.x, lerpSpeed)
+    cam.rotation.y = THREE.MathUtils.lerp(cam.rotation.y, targetRotation.current.y, lerpSpeed)
+    cam.rotation.z = THREE.MathUtils.lerp(cam.rotation.z, targetRotation.current.z, lerpSpeed)
+    
+    // Still look at center but with slight offset based on tilt
+    const lookAtOffset = {
+      x: clampedGamma * 0.05,
+      y: -clampedBeta * 0.05,
+      z: 0
+    }
+    cam.lookAt(lookAtOffset.x, lookAtOffset.y, lookAtOffset.z)
   })
   return null
 }

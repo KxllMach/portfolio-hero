@@ -240,7 +240,7 @@ function CameraGyro({ orientation, isSupported, permission }) {
     const cam = state.camera
 
     // Reduced strength for much more subtle panning
-    const cameraStrength = 0.1 
+    const cameraStrength = 0.2
     const maxCameraTilt = 20 // Reduced range for less travel
     const lerpSpeed = 0.06 // Slightly slower for a smoother feel
 

@@ -240,9 +240,9 @@ function CameraGyro({ orientation, isSupported, permission }) {
     const cam = state.camera
 
     // Reduced strength for much more subtle panning
-    const cameraStrength = 0.3
-    const maxCameraTilt = 20 // Reduced range for less travel
-    const lerpSpeed = 0.1 // Slightly slower for a smoother feel
+    const cameraStrength = 0.4 //was 0.3
+    const maxCameraTilt = 25 // was 0.2
+    const lerpSpeed = 0.2 // Slightly slower for a smoother feel ,was 0.1
 
     // Clamp gyroscope values
     const clampedGamma = Math.max(-maxCameraTilt, Math.min(maxCameraTilt, gamma))

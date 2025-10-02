@@ -73,7 +73,23 @@ export default function App() {
     click()
     setTriggerImpulse(prev => prev + 1)
   }, [])
-  
+
+  // Detect scroll attempts and allow parent scroll
+  useEffect(() => {
+    let scrollTimeout
+
+    const handleWheel = (e) => {
+      // Allow parent window to scroll
+      if (window.parent !== window) {
+        e.preventDefault()
+        window.parent.postMessage({ type: 'scroll', deltaY: e.deltaY }, '*')
+      }
+      
+      setIsScrolling(true)
+      clearTimeout(scrollTimeout)
+      scrollTimeout = setTimeout(() => setIsScrolling(false), 150)
+    }
+    
   return (
     <Canvas
       onClick={handleCanvasClick}

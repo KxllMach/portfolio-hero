@@ -73,13 +73,6 @@ export default function App() {
     click()
     setTriggerImpulse(prev => prev + 1)
   }, [])
-
-  // ADDED: Fix for scroll hijacking in iframes
-  useEffect(() => {
-    const handleWheel = (e) => e.preventDefault()
-    window.addEventListener('wheel', handleWheel, { passive: false })
-    return () => window.removeEventListener('wheel', handleWheel)
-  }, [])
   
   return (
     <Canvas

@@ -74,7 +74,7 @@ export default function App() {
     setTriggerImpulse(prev => prev + 1)
   }, [])
 
-  // Detect scroll attempts and allow parent scroll
+    // Detect scroll attempts and allow parent scroll
   useEffect(() => {
     let scrollTimeout
 
@@ -89,6 +89,23 @@ export default function App() {
       clearTimeout(scrollTimeout)
       scrollTimeout = setTimeout(() => setIsScrolling(false), 150)
     }
+
+    const handleTouchMove = (e) => {
+      // Allow touch scroll to pass through on mobile
+      setIsScrolling(true)
+      clearTimeout(scrollTimeout)
+      scrollTimeout = setTimeout(() => setIsScrolling(false), 150)
+    }
+
+    window.addEventListener('wheel', handleWheel, { passive: false })
+    window.addEventListener('touchmove', handleTouchMove, { passive: true })
+
+    return () => {
+      window.removeEventListener('wheel', handleWheel)
+      window.removeEventListener('touchmove', handleTouchMove)
+      clearTimeout(scrollTimeout)
+    }
+  }, [])
     
   return (
     <Canvas
